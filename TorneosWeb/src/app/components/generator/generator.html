@@ -1,0 +1,140 @@
+<div>
+    <div class="flex justify-between items-center mb-8">
+<app-breadcrumb [segments]="breadcrumbSegments" (navigate)="onBreadcrumb($event)"></app-breadcrumb>
+
+<div>
+            <h2 class="text-3xl font-extrabold text-white tracking-tight">⚙️ Match Management</h2>
+            <p class="text-sm text-gray-400 mt-1">Generate fixtures, simulate matches and fill match reports.</p>
+        </div>
+        <button (click)="loadTournaments()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium py-2 px-4 rounded-lg text-sm transition-all">
+            🔄 Refresh
+        </button>
+    </div>
+
+    <div *ngIf="loading" class="text-center py-16">
+        <div class="inline-block w-8 h-8 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-gray-400 mt-3">Loading tournaments...</p>
+    </div>
+
+    <div *ngIf="!loading && tournaments.length === 0" class="text-center py-16 bg-gray-800/10 rounded-xl border border-dashed border-gray-800">
+        <span class="text-5xl block mb-4">✅</span>
+        <p class="text-gray-400 text-lg font-medium mb-1">All caught up!</p>
+        <p class="text-gray-500 text-sm">No tournaments in progress for this sport.</p>
+    </div>
+
+    <div *ngIf="!loading && tournaments.length > 0" class="space-y-2">
+        <div *ngFor="let tournament of tournaments"
+             class="bg-gray-800/80 rounded-xl border border-gray-700 shadow-lg overflow-hidden transition-all hover:border-amber-500/40">
+
+            <button (click)="toggleExpand(tournament.id)"
+                    class="w-full flex items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-white/[0.02]">
+
+                <span class="text-lg transition-transform duration-200"
+                      [class.rotate-90]="expandedTournamentId === tournament.id"
+                      [style.color]="tournament.sport?.colorHex || '#f59e0b'">▶</span>
+
+                <div class="flex-1 flex items-center gap-3 flex-wrap">
+                    <h3 class="text-base font-bold text-white">{{ tournament.name }}</h3>
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md border border-gray-600/50 bg-gray-900/80 text-gray-300 uppercase tracking-wide">
+                        {{ tournament.format === 0 ? 'League' : tournament.format === 1 ? 'Knockout' : 'Groups' }}
+                    </span>
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md border border-blue-500/30 bg-blue-500/10 text-blue-400 uppercase tracking-wide">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-blue-400 mr-1 align-middle"></span>
+                        In Progress
+                    </span>
+                    <span class="text-xs text-gray-400">🎮 {{ tournament.sport?.name || '—' }}</span>
+                    <span class="text-xs text-gray-400">📍 {{ tournament.venueConfig === 0 ? 'Home & Away' : tournament.venueConfig === 1 ? 'Single Round' : 'Neutral Venue' }}</span>
+                    <span class="text-xs text-gray-400">👥 {{ tournament._enrolledCount || 0 }} teams</span>
+                </div>
+
+                <span *ngIf="tournament.isFixtureGenerated" class="text-[10px] text-green-400 font-medium bg-green-500/10 border border-green-500/30 px-2 py-0.5 rounded-md flex-shrink-0">
+                    ✓ Fixture ready
+                </span>
+            </button>
+
+            <div *ngIf="generating === tournament.id" class="px-5 pb-4">
+                <div class="p-3 bg-gray-900/60 rounded-lg border border-amber-500/20">
+                    <div class="space-y-2">
+                        <div *ngFor="let step of generationSteps; let i = index"
+                             class="flex items-center gap-2 transition-all duration-500"
+                             [class.opacity-30]="i > generationStep"
+                             [class.opacity-100]="i <= generationStep">
+                            <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                                  [class.bg-indigo-600]="i < generationStep"
+                                  [class.bg-amber-500]="i === generationStep"
+                                  [class.bg-gray-700]="i > generationStep"
+                                  [class.text-white]="i <= generationStep">
+                                <span *ngIf="i < generationStep">✓</span>
+                                <span *ngIf="i === generationStep" class="inline-block w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
+                                <span *ngIf="i > generationStep">{{ i + 1 }}</span>
+                            </span>
+                            <span class="text-xs font-medium"
+                                  [class.text-amber-300]="i === generationStep"
+                                  [class.text-gray-400]="i !== generationStep">
+                                {{ step }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div *ngIf="!tournament.isFixtureGenerated && generating !== tournament.id && (authService.isAdmin$ | async)"
+                 class="px-5 pb-4">
+                <button (click)="generateFixture(tournament.id, tournament.name)"
+                        [disabled]="generating === tournament.id"
+                        class="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-lg text-sm shadow-md transition-all">
+                    <span *ngIf="generating === tournament.id" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle"></span>
+                    ⚡ Generate Fixture
+                </button>
+            </div>
+
+            <div *ngIf="expandedTournamentId === tournament.id && tournament.isFixtureGenerated">
+                <div class="border-t border-gray-700/50 px-5 py-4">
+                    <div class="space-y-3">
+                        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">📅 Schedule</p>
+                        <div *ngFor="let round of getMatchRounds(getMatches(tournament.id))" class="space-y-1.5">
+                            <p class="text-[11px] font-bold uppercase tracking-widest text-indigo-400">{{ getRoundLabel(round) }}</p>
+                            <div *ngFor="let match of getMatchesByRound(getMatches(tournament.id), round); let i = index"
+                                 class="flex items-center gap-1.5 bg-gray-900/40 rounded-lg px-3 py-2 border border-gray-700/30"
+                                 [style.animation]="'fadeInUp 0.25s ease-out ' + (i * 0.03) + 's both'">
+                                <span class="text-[10px] text-gray-500 w-12 flex-shrink-0">{{ match.matchDate | date:'dd MMM' }}</span>
+                                <span class="flex-1 text-right text-xs font-medium text-white truncate">{{ match.homeTeam?.name || 'TBD' }}</span>
+                                <span class="text-xs text-gray-500 font-bold px-1">vs</span>
+                                <span class="flex-1 text-xs font-medium text-white truncate">{{ match.awayTeam?.name || 'TBD' }}</span>
+                                <span class="text-[10px] text-gray-500 w-8 flex-shrink-0">{{ match.stage === 'RegularSeason_Ida' ? '1st' : '2nd' }}</span>
+                                <div *ngIf="authService.isAdmin$ | async" class="flex gap-1 flex-shrink-0">
+                                    <button (click)="openSimulate(match)" title="Simulate"
+                                            class="bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white w-6 h-6 rounded flex items-center justify-center text-xs transition-all">🎲</button>
+                                    <button (click)="openReport(match)" title="Fill Report"
+                                            class="bg-cyan-600/20 hover:bg-cyan-600 text-cyan-400 hover:text-white w-6 h-6 rounded flex items-center justify-center text-xs transition-all">📋</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div *ngIf="showActionModal && selectedMatch" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+        <button (click)="closeActionModal()" class="absolute top-5 right-5 text-gray-400 hover:text-white transition">✕</button>
+        <div class="text-center">
+            <span class="text-4xl block mb-3">{{ actionType === 'simulate' ? '🎲' : '📋' }}</span>
+            <h3 class="text-xl font-bold text-white mb-2">{{ actionType === 'simulate' ? 'Simulate Match' : 'Match Report' }}</h3>
+            <p class="text-sm text-gray-400 mb-1">{{ selectedMatch.homeTeam?.name || 'Team' }} vs {{ selectedMatch.awayTeam?.name || 'Team' }}</p>
+            <p class="text-xs text-gray-500 mb-6">{{ selectedMatch.matchDate | date:'fullDate' }}</p>
+            <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                <p class="text-amber-400 text-sm font-medium">🚧 Coming soon</p>
+                <p class="text-gray-400 text-xs mt-1">This feature is not yet implemented for any sport.</p>
+            </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+            <button (click)="closeActionModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 px-4 rounded-lg text-sm transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<app-success-modal [show]="showSuccessModal" [message]="successMessage" (close)="closeSuccessModal()"></app-success-modal>
+<app-error-modal [show]="showErrorModal" [message]="errorMessage" (close)="closeErrorModal()"></app-error-modal>

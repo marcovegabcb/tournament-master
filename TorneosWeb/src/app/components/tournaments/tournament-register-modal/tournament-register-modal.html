@@ -1,0 +1,47 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all">
+    <div class="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+        <button (click)="close()" class="absolute top-5 right-5 text-gray-400 hover:text-white transition">✕</button>
+        <h3 class="text-xl font-bold text-white mb-1">📝 Register Team</h3>
+        <p class="text-xs text-gray-400 mb-6">Select a team to enroll in <strong class="text-indigo-400">{{ tournament?.name }}</strong> (min prestige: ⭐{{ tournament?.minPrestigeRequired }}{{ tournament?.minPlayersPerTeam ? ' · min players: 👥' + tournament?.minPlayersPerTeam : '' }}{{ tournament?.venueConfig !== 2 ? ' · 🏟️ own stadium required' : '' }}).</p>
+
+        <div *ngIf="errorMessage" class="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400">
+            {{ errorMessage }}
+        </div>
+
+        <div class="space-y-3 max-h-60 overflow-y-auto pr-1">
+            <div *ngIf="availableTeams.length === 0" class="text-center py-8">
+                <span class="text-3xl block mb-2">🛡️</span>
+                <p class="text-gray-400 text-sm">All teams are already enrolled.</p>
+            </div>
+            <div *ngFor="let team of availableTeams"
+                 (click)="selectTeam(team)"
+                 class="flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-all"
+                 [class.border-indigo-500/60]="selectedTeamId === team.id"
+                 [class.bg-indigo-600/15]="selectedTeamId === team.id"
+                 [class.border-gray-700]="selectedTeamId !== team.id"
+                 [class.hover:border-gray-600]="selectedTeamId !== team.id">
+                <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+                    {{ team.name.charAt(0) }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-white truncate">{{ team.name }}</p>
+                    <p class="text-xs text-gray-400">⭐ {{ team.prestigePoints }} prestige · 👥 {{ team.players?.length || 0 }} players · {{ team.captainName }}</p>
+                    <p class="text-xs mt-0.5" [class.text-emerald-400]="team.stadiumId" [class.text-red-400]="!team.stadiumId">
+                        {{ team.stadiumId ? '🏟️ ' + (team.stadium?.name || 'Has stadium') : '⛔ No stadium' }}
+                    </p>
+                </div>
+                <div *ngIf="selectedTeamId === team.id" class="text-indigo-400 text-lg">✓</div>
+            </div>
+        </div>
+
+        <div class="flex gap-3 mt-6">
+            <button (click)="close()" class="w-1/3 bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 px-4 rounded-lg text-sm transition">Cancel</button>
+            <button (click)="enroll()"
+                    [disabled]="!selectedTeamId || registering"
+                    class="w-2/3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg text-sm shadow-md transition-all">
+                <span *ngIf="registering" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle"></span>
+                {{ registering ? 'Registering...' : 'Enroll Team' }}
+            </button>
+        </div>
+    </div>
+</div>

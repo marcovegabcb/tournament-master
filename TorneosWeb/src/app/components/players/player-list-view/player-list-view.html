@@ -1,0 +1,126 @@
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h2 class="text-3xl font-extrabold text-white tracking-tight">👥 Players</h2>
+        <p class="text-sm text-gray-400 mt-1">Player rosters and individual statistics.</p>
+    </div>
+    <button *ngIf="authService.isAdmin$ | async" (click)="createPlayer.emit()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-lg shadow-md transition-all transform hover:scale-105 active:scale-95">
+        + Register New Player
+    </button>
+</div>
+
+<div *ngIf="openDropdown" class="fixed inset-0 z-40" (click)="openDropdown = null"></div>
+
+<div class="flex flex-wrap items-center gap-3 mb-6">
+    <div class="relative flex-1 min-w-[200px] max-w-xs">
+        <input type="text" [(ngModel)]="searchQuery" placeholder="🔍 Search players..."
+               class="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-3.5 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition">
+    </div>
+    <div class="relative">
+        <button (click)="toggleDropdown('tournament', $event)"
+                class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-800/60 border border-gray-700/60 text-xs font-medium text-gray-300 hover:bg-gray-700/60 hover:border-gray-600 transition-all min-w-[180px]">
+            <span class="truncate max-w-[140px]">{{ tournamentLabel }}</span>
+            <svg class="w-3.5 h-3.5 text-gray-500 transition-transform shrink-0" [class.rotate-180]="openDropdown === 'tournament'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div *ngIf="openDropdown === 'tournament'"
+             class="absolute top-full left-0 mt-1.5 min-w-[220px] max-h-60 overflow-y-auto rounded-xl bg-gray-800 border border-gray-700 shadow-2xl shadow-black/50 py-1.5 z-50"
+             (click)="$event.stopPropagation()">
+            <button (click)="setTournamentFilter(null)"
+                    class="block w-full text-left px-4 py-2 text-xs font-medium transition-colors"
+                    [class.text-indigo-400]="!selectedTournamentId"
+                    [class.text-gray-300]="selectedTournamentId !== null"
+                    [class.bg-indigo-600/10]="!selectedTournamentId"
+                    [class.hover:bg-gray-700/50]="selectedTournamentId !== null">
+                🏆 All Tournaments
+            </button>
+            <button *ngFor="let t of getFilteredTournaments()" (click)="setTournamentFilter(t.id)"
+                    class="block w-full text-left px-4 py-2 text-xs font-medium transition-colors truncate"
+                    [class.text-indigo-400]="selectedTournamentId === t.id"
+                    [class.text-gray-300]="selectedTournamentId !== t.id"
+                    [class.bg-indigo-600/10]="selectedTournamentId === t.id"
+                    [class.hover:bg-gray-700/50]="selectedTournamentId !== t.id">
+                🏆 {{ t.name }}
+            </button>
+        </div>
+    </div>
+    <div class="relative">
+        <button (click)="toggleDropdown('team', $event)"
+                class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-800/60 border border-gray-700/60 text-xs font-medium transition-all min-w-[160px]"
+                [class.text-gray-500]="!selectedTournamentId || tournamentTeams.length === 0"
+                [class.text-gray-300]="selectedTournamentId && tournamentTeams.length > 0"
+                [class.hover:bg-gray-700/60]="selectedTournamentId && tournamentTeams.length > 0"
+                [class.hover:border-gray-600]="selectedTournamentId && tournamentTeams.length > 0"
+                [class.cursor-not-allowed]="!selectedTournamentId || tournamentTeams.length === 0"
+                [class.border-gray-700/40]="!selectedTournamentId || tournamentTeams.length === 0"
+                [class.border-gray-700/60]="selectedTournamentId && tournamentTeams.length > 0">
+            <span class="truncate max-w-[120px]">{{ teamLabel }}</span>
+            <svg class="w-3.5 h-3.5 text-gray-500 transition-transform shrink-0" [class.rotate-180]="openDropdown === 'team'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div *ngIf="openDropdown === 'team'"
+             class="absolute top-full left-0 mt-1.5 min-w-[220px] max-h-60 overflow-y-auto rounded-xl bg-gray-800 border border-gray-700 shadow-2xl shadow-black/50 py-1.5 z-50"
+             (click)="$event.stopPropagation()">
+            <button (click)="setTeamFilter(null)"
+                    class="block w-full text-left px-4 py-2 text-xs font-medium transition-colors"
+                    [class.text-indigo-400]="!selectedTeamId"
+                    [class.text-gray-300]="selectedTeamId !== null"
+                    [class.bg-indigo-600/10]="!selectedTeamId"
+                    [class.hover:bg-gray-700/50]="selectedTeamId !== null">
+                👥 All Teams
+            </button>
+            <button *ngFor="let team of tournamentTeams" (click)="setTeamFilter(team.id)"
+                    class="block w-full text-left px-4 py-2 text-xs font-medium transition-colors truncate"
+                    [class.text-indigo-400]="selectedTeamId === team.id"
+                    [class.text-gray-300]="selectedTeamId !== team.id"
+                    [class.bg-indigo-600/10]="selectedTeamId === team.id"
+                    [class.hover:bg-gray-700/50]="selectedTeamId !== team.id">
+                🛡️ {{ team.name }}
+            </button>
+        </div>
+    </div>
+    <div class="relative">
+        <button (click)="toggleDropdown('sort', $event)"
+                class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-800/60 border border-gray-700/60 text-xs font-medium text-gray-300 hover:bg-gray-700/60 hover:border-gray-600 transition-all">
+            <span>{{ sortLabel }}</span>
+            <svg class="w-3.5 h-3.5 text-gray-500 transition-transform" [class.rotate-180]="openDropdown === 'sort'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div *ngIf="openDropdown === 'sort'"
+             class="absolute top-full left-0 mt-1.5 min-w-[200px] rounded-xl bg-gray-800 border border-gray-700 shadow-2xl shadow-black/50 py-1.5 z-50"
+             (click)="$event.stopPropagation()">
+            <button *ngFor="let opt of sortOptions" (click)="setSort(opt.value)"
+                    class="block w-full text-left px-4 py-2 text-xs font-medium transition-colors"
+                    [class.text-indigo-400]="sortBy === opt.value"
+                    [class.text-gray-300]="sortBy !== opt.value"
+                    [class.bg-indigo-600/10]="sortBy === opt.value"
+                    [class.hover:bg-gray-700/50]="sortBy !== opt.value">
+                {{ opt.label }}
+            </button>
+        </div>
+    </div>
+</div>
+
+<div *ngIf="loading" class="text-center py-16">
+    <div class="inline-block w-8 h-8 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+    <p class="text-gray-400 mt-3">Loading players...</p>
+</div>
+
+<div *ngIf="!loading && filteredPlayers.length > 0" class="bg-gray-800/50 rounded-xl border border-gray-700 overflow-hidden">
+    <div *ngFor="let player of filteredPlayers" class="flex items-center justify-between px-5 py-3 border-b border-gray-700/50 last:border-b-0 hover:bg-gray-700/30 transition cursor-pointer" (click)="onShowDetails(player)">
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                 [style.background]="getSportColor(player.team?.sportId)">
+                {{ getInitials(player.firstName, player.lastName) }}
+            </div>
+            <span class="text-white font-medium truncate">{{ player.firstName }} {{ player.lastName }} <span class="text-gray-500 text-xs font-normal">{{ player.team?.name ? '· ' + player.team.name : '' }}</span></span>
+        </div>
+        <button *ngIf="authService.isAdmin$ | async" (click)="onDelete(player); $event.stopPropagation()"
+                class="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white w-7 h-7 rounded-lg flex items-center justify-center transition-all flex-shrink-0"
+                title="Delete Player">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+    </div>
+</div>
+
+<div *ngIf="!loading && filteredPlayers.length === 0" class="text-center py-16 bg-gray-800/10 rounded-xl border border-dashed border-gray-800 mt-6">
+    <span class="text-5xl block mb-4">👥</span>
+    <p class="text-gray-400 text-lg font-medium mb-1">No players registered</p>
+    <p class="text-gray-500 text-sm">Click "+ Register New Player" to add the first one!</p>
+</div>

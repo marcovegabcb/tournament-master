@@ -1,0 +1,130 @@
+<div *ngIf="!team" class="text-center py-16">
+    <div class="inline-block w-8 h-8 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+    <p class="text-gray-400 mt-3">Loading team details...</p>
+</div>
+
+<div *ngIf="team">
+    <div class="flex items-center gap-4 mb-8">
+        <button (click)="goBack()" class="text-gray-400 hover:text-white transition p-1">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <div>
+            <h2 class="text-2xl font-extrabold text-white tracking-tight">{{ team.name }}</h2>
+            <p class="text-sm text-gray-400 mt-0.5">🛡️ Team Profile · {{ team.sport?.name || '—' }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-1 space-y-4">
+            <div class="bg-gray-800/80 rounded-xl border border-gray-700 p-5">
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white shadow-lg mb-3">
+                        {{ team.name?.charAt(0) || '?' }}
+                    </div>
+                    <h3 class="text-xl font-bold text-white">{{ team.name }}</h3>
+                    <p class="text-sm text-gray-400 mt-1">👤 {{ team.captainName || 'No captain' }}</p>
+                    <div class="flex items-center gap-2 mt-2">
+                        <span class="text-xs bg-yellow-500/20 text-yellow-400 font-semibold px-3 py-1 rounded-full border border-yellow-500/30">⭐ {{ team.prestigePoints }} prestige</span>
+                    </div>
+                </div>
+                <div class="mt-4 space-y-2 text-sm">
+                    <div class="flex justify-between text-gray-400"><span>Sport</span><span class="text-white">🎮 {{ team.sport?.name || '—' }}</span></div>
+                    <div class="flex justify-between text-gray-400"><span>Stadium</span><span class="text-white">🏟️ {{ team.stadium ? team.stadium.name + ' (' + team.stadium.city + ')' : '—' }}</span></div>
+                    <div class="flex justify-between text-gray-400"><span>Group</span><span class="text-white">{{ team.groupLabel || '—' }}</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-gray-800/80 rounded-xl border border-gray-700 overflow-hidden">
+                <button (click)="teamState.players = !teamState.players"
+                        class="w-full flex items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-white/[0.02] border-b border-gray-700/50">
+                    <span class="text-lg transition-transform duration-200 shrink-0" [class.rotate-90]="!teamState.players">▶</span>
+                    <span class="text-lg font-bold text-white">👥 Players</span>
+                    <span class="text-xs text-gray-500">({{ team.players?.length || 0 }})</span>
+                </button>
+                <div [hidden]="teamState.players" class="p-5">
+                    <div *ngIf="team.players?.length === 0" class="text-center py-6">
+                        <span class="text-3xl block mb-2">👥</span>
+                        <p class="text-gray-400 text-sm">No players assigned to this team yet.</p>
+                    </div>
+                    <div *ngIf="team.players?.length > 0" class="space-y-2">
+                        <div *ngFor="let player of team.players"
+                             class="flex items-center gap-3 p-3 rounded-lg bg-gray-700/30 border border-gray-700/50">
+                            <div class="w-10 h-10 rounded-full bg-indigo-600/20 flex items-center justify-center text-sm font-bold text-indigo-400">#{{ player.jerseyNumber }}</div>
+                            <div class="flex-1">
+                                <p class="text-sm font-semibold text-white">{{ player.firstName }} {{ player.lastName }}</p>
+                                <p class="text-xs text-gray-400">{{ player.matchesPlayed }} matches</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-800/80 rounded-xl border border-gray-700 overflow-hidden">
+                <button (click)="teamState.tournaments = !teamState.tournaments"
+                        class="w-full flex items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-white/[0.02] border-b border-gray-700/50">
+                    <span class="text-lg transition-transform duration-200 shrink-0" [class.rotate-90]="!teamState.tournaments">▶</span>
+                    <span class="text-lg font-bold text-white">🏆 Tournaments</span>
+                    <span class="text-xs text-gray-500">({{ team.tournaments?.length || 0 }})</span>
+                </button>
+                <div [hidden]="teamState.tournaments" class="p-5">
+                    <div *ngIf="team.tournaments?.length === 0" class="text-center py-6">
+                        <span class="text-3xl block mb-2">🏆</span>
+                        <p class="text-gray-400 text-sm">This team is not enrolled in any tournaments.</p>
+                    </div>
+                    <div *ngIf="team.tournaments?.length > 0" class="space-y-2">
+                        <div *ngFor="let t of team.tournaments"
+                             class="flex items-center gap-3 p-3 rounded-lg bg-gray-700/30 border border-gray-700/50">
+                            <div class="flex-1">
+                                <p class="text-sm font-semibold text-white">{{ t.name }}</p>
+                                <p class="text-xs text-gray-400">🎮 {{ t.sport?.name || '—' }} · {{ t.format === 0 ? 'League' : t.format === 1 ? 'Knockout' : 'Groups' }}</p>
+                            </div>
+                            <span class="text-xs font-semibold px-2 py-1 rounded-md border"
+                                  [class.bg-green-500/20]="t.status === 0" [class.text-green-400]="t.status === 0" [class.border-green-500/30]="t.status === 0"
+                                  [class.bg-blue-500/20]="t.status === 1" [class.text-blue-400]="t.status === 1" [class.border-blue-500/30]="t.status === 1"
+                                  [class.bg-gray-500/20]="t.status === 2" [class.text-gray-400]="t.status === 2" [class.border-gray-500/30]="t.status === 2">
+                                {{ getStatusLabel(t.status) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-800/80 rounded-xl border border-gray-700 overflow-hidden">
+                <button (click)="teamState.matches = !teamState.matches"
+                        class="w-full flex items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-white/[0.02] border-b border-gray-700/50">
+                    <span class="text-lg transition-transform duration-200 shrink-0" [class.rotate-90]="!teamState.matches">▶</span>
+                    <span class="text-lg font-bold text-white">📅 Recent Matches</span>
+                    <span class="text-xs text-gray-500">({{ team.matches?.length || 0 }})</span>
+                </button>
+                <div [hidden]="teamState.matches" class="p-5">
+                    <div *ngIf="team.matches?.length === 0" class="text-center py-6">
+                        <span class="text-3xl block mb-2">📅</span>
+                        <p class="text-gray-400 text-sm">No matches played yet.</p>
+                    </div>
+                    <div *ngIf="team.matches?.length > 0" class="space-y-2">
+                        <div *ngFor="let match of team.matches"
+                             class="flex items-center gap-4 bg-gray-700/30 rounded-lg px-4 py-2.5 border border-gray-700/50">
+                            <span class="text-xs text-gray-500 w-16 flex-shrink-0">{{ match.matchDate | date:'dd MMM' }}</span>
+                            <span class="flex-1 text-right text-sm text-white truncate">{{ match.homeTeam.name }}</span>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <span class="text-sm font-bold min-w-[1.2rem] text-right"
+                                      [class.text-green-400]="match.isPlayed && match.homeScore > match.awayScore"
+                                      [class.text-red-400]="match.isPlayed && match.homeScore < match.awayScore"
+                                      [class.text-gray-300]="!match.isPlayed">{{ match.isPlayed ? match.homeScore : '—' }}</span>
+                                <span class="text-gray-600 text-xs font-bold">:</span>
+                                <span class="text-sm font-bold min-w-[1.2rem]"
+                                      [class.text-green-400]="match.isPlayed && match.awayScore > match.homeScore"
+                                      [class.text-red-400]="match.isPlayed && match.awayScore < match.homeScore"
+                                      [class.text-gray-300]="!match.isPlayed">{{ match.isPlayed ? match.awayScore : '—' }}</span>
+                            </div>
+                            <span class="flex-1 text-sm text-white truncate">{{ match.awayTeam.name }}</span>
+                            <span class="text-xs text-gray-500 w-20 text-right truncate">{{ match.tournamentName }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

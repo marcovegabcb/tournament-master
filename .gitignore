@@ -1,0 +1,42 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+*.tmp
+*.dll
+*.exe
+*.pdb
+.csproj.user
+appsettings.json
+*. secrets.json
+/.vs/
+
+# Angular / Node
+node_modules/
+dist/
+tmp/
+out-tsc/
+*.tsbuildinfo
+/.angular/cache
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/mcp.json
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/

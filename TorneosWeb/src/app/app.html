@@ -1,0 +1,259 @@
+<nav class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-14">
+            <span class="text-xl font-bold text-indigo-400">🏆 TournamentMaster</span>
+            <div class="flex items-center space-x-2">
+                <button (click)="currentTab = 'home'" 
+                        [class.bg-indigo-600]="currentTab === 'home'" [class.text-white]="currentTab === 'home'"
+                        [class.text-gray-300]="currentTab !== 'home'" [class.hover:bg-gray-700]="currentTab !== 'home'"
+                        class="px-3 py-1.5 rounded-md text-sm font-medium transition">Home</button>
+                <button (click)="currentTab = 'tournaments'" 
+                        [class.bg-indigo-600]="currentTab === 'tournaments'" [class.text-white]="currentTab === 'tournaments'"
+                        [class.text-gray-300]="currentTab !== 'tournaments'" [class.hover:bg-gray-700]="currentTab !== 'tournaments'"
+                        class="px-3 py-1.5 rounded-md text-sm font-medium transition">Tournaments</button>
+                <button (click)="currentTab = 'teams'" 
+                        [class.bg-indigo-600]="currentTab === 'teams'" [class.text-white]="currentTab === 'teams'"
+                        [class.text-gray-300]="currentTab !== 'teams'" [class.hover:bg-gray-700]="currentTab !== 'teams'"
+                        class="px-3 py-1.5 rounded-md text-sm font-medium transition">Teams</button>
+                <button (click)="currentTab = 'players'" 
+                        [class.bg-indigo-600]="currentTab === 'players'" [class.text-white]="currentTab === 'players'"
+                        [class.text-gray-300]="currentTab !== 'players'" [class.hover:bg-gray-700]="currentTab !== 'players'"
+                        class="px-3 py-1.5 rounded-md text-sm font-medium transition">Players</button>
+                <button (click)="currentTab = 'stadiums'" 
+                        [class.bg-indigo-600]="currentTab === 'stadiums'" [class.text-white]="currentTab === 'stadiums'"
+                        [class.text-gray-300]="currentTab !== 'stadiums'" [class.hover:bg-gray-700]="currentTab !== 'stadiums'"
+                        class="px-3 py-1.5 rounded-md text-sm font-medium transition">Stadiums</button>
+                <button *ngIf="authService.isAdmin$ | async" (click)="currentTab = 'requests'" 
+                        [class.bg-indigo-600]="currentTab === 'requests'" [class.text-white]="currentTab === 'requests'"
+                        [class.text-gray-300]="currentTab !== 'requests'" [class.hover:bg-gray-700]="currentTab !== 'requests'"
+                        class="px-3 py-1.5 rounded-md text-sm font-medium transition">📋 Requests</button>
+                <button *ngIf="authService.isAdmin$ | async" (click)="currentTab = 'generator'" 
+                        [class.bg-indigo-600]="currentTab === 'generator'" [class.text-white]="currentTab === 'generator'"
+                        [class.text-gray-300]="currentTab !== 'generator'" [class.hover:bg-gray-700]="currentTab !== 'generator'"
+                        class="px-3 py-1.5 rounded-md text-sm font-medium transition">⚙️ Matches</button>
+            </div>
+            <div class="flex items-center space-x-2">
+                <ng-container *ngIf="authService.isAdmin$ | async; else loginBtn">
+                    <span class="text-xs text-gray-400 hidden sm:inline">{{ adminEmail }}</span>
+                    <button (click)="logout()" class="text-gray-400 hover:text-white text-xs font-medium transition px-2 py-1 rounded hover:bg-gray-700">Logout</button>
+                </ng-container>
+                <ng-template #loginBtn>
+                    <button (click)="openLogin()" class="text-indigo-400 hover:text-indigo-300 text-xs font-medium transition px-2 py-1 rounded hover:bg-gray-700">🔐 Admin</button>
+                </ng-template>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="flex max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6">
+    <aside class="sticky top-14 z-40 w-48 flex-shrink-0 h-[calc(100vh-3.5rem)] py-6 hidden md:block">
+        <div class="bg-gray-800/50 rounded-2xl border border-gray-700/50 p-3 space-y-1">
+            <div class="text-[10px] font-bold uppercase tracking-widest text-gray-500 px-2 pb-2 pt-1">⛹️ Sports</div>
+            <div *ngFor="let sport of sportsList"
+                 (click)="selectSport(sport)"
+                 [class.text-white]="selectedSport?.id === sport.id"
+                 [class.text-gray-400]="selectedSport?.id !== sport.id"
+                 class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all hover:text-gray-200"
+                 [style.background]="selectedSport?.id === sport.id ? sport.colorHex + '22' : 'transparent'"
+                 [style.border]="selectedSport?.id === sport.id ? '1px solid ' + sport.colorHex + '55' : '1px solid transparent'">
+                <span class="text-lg">{{ getSportIcon(sport.name) }}</span>
+                <span class="flex-1">{{ sport.name }}</span>
+                <span class="text-[10px] font-bold opacity-50" [style.color]="sport.colorHex">{{ getSportCount(sport.id) }}</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 min-w-0 pt-6 pb-0">
+        <div class="flex md:hidden items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide"
+             style="scrollbar-width: none; -ms-overflow-style: none;">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex-shrink-0 mr-1">⛹️</span>
+            <button *ngFor="let sport of sportsList"
+                    (click)="selectSport(sport)"
+                    [class.text-white]="selectedSport?.id === sport.id"
+                    [class.text-gray-400]="selectedSport?.id !== sport.id"
+                    class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap border border-gray-700/50"
+                    [style.background]="selectedSport?.id === sport.id ? sport.colorHex + '22' : '#1e293b'"
+                    [style.borderColor]="selectedSport?.id === sport.id ? sport.colorHex + '55' : 'rgba(75,85,99,0.5)'">
+                <span>{{ getSportIcon(sport.name) }}</span>
+                <span>{{ sport.name }}</span>
+            </button>
+        </div>
+
+        <div *ngIf="currentTab === 'home'" class="space-y-5">
+
+            <div class="relative rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-900/50 via-gray-900 to-gray-900 min-h-[180px] flex items-center justify-center p-8 shadow-2xl border border-gray-700/50">
+                <div class="text-center max-w-2xl">
+                    <span class="inline-block text-xs font-bold tracking-widest text-indigo-400 uppercase bg-gray-900/80 px-4 py-1.5 rounded-full border border-indigo-500/30 mb-3">
+                        🚀 TournamentMaster
+                    </span>
+                    <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                        Welcome to the Hub
+                    </h1>
+                    <p class="mt-2 text-gray-300">
+                        Manage tournaments, teams, players, and stadiums across all sports.
+                    </p>
+                    <div class="mt-4 flex justify-center gap-3 flex-wrap">
+                        <button (click)="currentTab = 'tournaments'" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-lg shadow-md transition-all transform hover:scale-105 text-sm">
+                            ⚙️ Manage Tournaments
+                        </button>
+                        <button *ngIf="authService.isAdmin$ | async" (click)="currentTab = 'generator'" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-5 rounded-lg shadow-md transition-all transform hover:scale-105 text-sm">
+                            📅 Matches
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-gray-800/70 rounded-xl border border-gray-700/50 p-4 text-center">
+                    <span class="text-2xl block mb-1">🏆</span>
+                    <div class="text-2xl font-extrabold text-white">{{ totalTournaments }}</div>
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">Tournaments</div>
+                </div>
+                <div class="bg-gray-800/70 rounded-xl border border-gray-700/50 p-4 text-center">
+                    <span class="text-2xl block mb-1">🛡️</span>
+                    <div class="text-2xl font-extrabold text-white">{{ totalTeams }}</div>
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">Teams</div>
+                </div>
+                <div class="bg-gray-800/70 rounded-xl border border-gray-700/50 p-4 text-center">
+                    <span class="text-2xl block mb-1">👥</span>
+                    <div class="text-2xl font-extrabold text-white">{{ totalPlayers }}</div>
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">Players</div>
+                </div>
+                <div class="bg-gray-800/70 rounded-xl border border-gray-700/50 p-4 text-center">
+                    <span class="text-2xl block mb-1">🏟️</span>
+                    <div class="text-2xl font-extrabold text-white">{{ totalStadiums }}</div>
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">Stadiums</div>
+                </div>
+            </div>
+
+            <div class="relative">
+                <button (click)="scrollLeft()"
+                        class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-gray-900/80 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 transition shadow-lg hidden sm:flex">
+                    ‹
+                </button>
+                <button (click)="scrollRight()"
+                        class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-gray-900/80 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 transition shadow-lg hidden sm:flex">
+                    ›
+                </button>
+
+                <div #slider class="flex gap-5 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2">
+                    <div *ngFor="let sport of sportsList; let i = index"
+                         class="flex-shrink-0 w-full sm:w-[calc(50%-10px)] snap-start rounded-2xl overflow-hidden border border-gray-700/50 shadow-xl"
+                         [style.background]="'linear-gradient(135deg, ' + sport.colorHex + '22 0%, ' + sport.colorHex + '08 50%, #1e293b 100%)'"
+                         [style.borderColor]="sport.colorHex + '44'">
+
+                        <div class="p-6 sm:p-8 flex flex-col h-full">
+                            <div class="flex items-center gap-4 mb-5">
+                                <span class="text-4xl">{{ getSportIcon(sport.name) }}</span>
+                                <div>
+                                    <h2 class="text-2xl font-extrabold text-white tracking-tight">{{ sport.name }}</h2>
+                                    <p class="text-sm" [style.color]="sport.colorHex">
+                                        {{ getSportStats(sport.id).tournaments + getSportStats(sport.id).teams + getSportStats(sport.id).players + getSportStats(sport.id).stadiums }} total entries
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-4 gap-3 mb-6">
+                                <div class="bg-black/30 rounded-xl p-3 text-center border" [style.borderColor]="sport.colorHex + '33'">
+                                    <span class="text-xl block mb-1">🏆</span>
+                                    <div class="text-2xl font-extrabold text-white">{{ getSportStats(sport.id).tournaments }}</div>
+                                </div>
+                                <div class="bg-black/30 rounded-xl p-3 text-center border" [style.borderColor]="sport.colorHex + '33'">
+                                    <span class="text-xl block mb-1">🛡️</span>
+                                    <div class="text-2xl font-extrabold text-white">{{ getSportStats(sport.id).teams }}</div>
+                                </div>
+                                <div class="bg-black/30 rounded-xl p-3 text-center border" [style.borderColor]="sport.colorHex + '33'">
+                                    <span class="text-xl block mb-1">👥</span>
+                                    <div class="text-2xl font-extrabold text-white">{{ getSportStats(sport.id).players }}</div>
+                                </div>
+                                <div class="bg-black/30 rounded-xl p-3 text-center border" [style.borderColor]="sport.colorHex + '33'">
+                                    <span class="text-xl block mb-1">🏟️</span>
+                                    <div class="text-2xl font-extrabold text-white">{{ getSportStats(sport.id).stadiums }}</div>
+                                </div>
+                            </div>
+
+                            <div class="mt-auto flex flex-wrap gap-2">
+                                <button (click)="goToSport(sport, 'tournaments')"
+                                        class="flex-1 min-w-[100px] flex items-center justify-center text-white font-semibold py-2.5 px-3 rounded-lg text-sm transition-all transform hover:scale-105 shadow-md"
+                                        [style.background]="sport.colorHex">
+                                    Tournaments
+                                </button>
+                                
+                                <button (click)="goToSport(sport, 'teams')"
+                                        class="flex-1 min-w-[100px] flex items-center justify-center text-white font-semibold py-2.5 px-3 rounded-lg text-sm transition-all transform hover:scale-105 shadow-md"
+                                        [style.background]="sport.colorHex">
+                                    Teams
+                                </button>
+                                
+                                <button (click)="goToSport(sport, 'players')"
+                                        class="flex-1 min-w-[100px] flex items-center justify-center text-white font-semibold py-2.5 px-3 rounded-lg text-sm transition-all transform hover:scale-105 shadow-md"
+                                        [style.background]="sport.colorHex">
+                                    Players
+                                </button>
+                                
+                                <button (click)="goToSport(sport, 'stadiums')"
+                                        class="flex-1 min-w-[100px] flex items-center justify-center text-white font-semibold py-2.5 px-3 rounded-lg text-sm transition-all transform hover:scale-105 shadow-md"
+                                        [style.background]="sport.colorHex">
+                                    Stadiums
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center gap-2 pt-1">
+                <button *ngFor="let sport of sportsList; let i = index"
+                        (click)="scrollToSport(i)"
+                        class="w-2.5 h-2.5 rounded-full transition-all opacity-60 hover:opacity-100"
+                        [style.background]="sport.colorHex">
+                </button>
+            </div>
+
+            <app-footer (navigate)="currentTab = $event"></app-footer>
+        </div>
+
+        <div [hidden]="currentTab !== 'tournaments'">
+        <app-tournaments
+                     [list]="filteredTournaments" 
+                     [activeSportId]="selectedSport?.id"
+                     [sportsList]="sportsList"
+                     (tournamentCreated)="loadTournaments()"
+                     (goToGenerator)="currentTab = 'generator'"
+                     (navigateHome)="currentTab = 'home'"> </app-tournaments>
+        </div>
+
+        <div [hidden]="currentTab !== 'teams'">
+        <app-teams
+                   [activeSportId]="selectedSport?.id"
+                   (navigateHome)="currentTab = 'home'"></app-teams>
+        </div>
+
+        <div [hidden]="currentTab !== 'players'">
+        <app-players
+                     [activeSportId]="selectedSport?.id"
+                     (navigateHome)="currentTab = 'home'"></app-players>
+        </div>
+
+        <div [hidden]="currentTab !== 'stadiums'">
+        <app-stadiums [activeSportId]="selectedSport?.id"
+                     (navigateHome)="currentTab = 'home'"></app-stadiums>
+        </div>
+
+        <div [hidden]="currentTab !== 'generator' || !(authService.isAdmin$ | async)">
+        <app-generator
+                       [activeSportId]="selectedSport?.id"
+                       (navigateHome)="currentTab = 'home'"></app-generator>
+        </div>
+
+        <div *ngIf="currentTab === 'requests' && (authService.isAdmin$ | async)">
+        <app-enrollment-requests
+                                (navigateHome)="currentTab = 'home'"
+                                (requestProcessed)="loadTournaments()"></app-enrollment-requests>
+        </div>
+    </main>
+</div>
+
+<app-login *ngIf="showLoginModal"
+           (loggedIn)="onLoggedIn()"
+           (cancelled)="closeLogin()"></app-login>

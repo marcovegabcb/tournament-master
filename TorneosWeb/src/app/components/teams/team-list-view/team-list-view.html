@@ -1,0 +1,107 @@
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h2 class="text-3xl font-extrabold text-white tracking-tight">🛡️ Teams</h2>
+        <p class="text-sm text-gray-400 mt-1">Registered clubs with prestige points and stadium assignments.</p>
+    </div>
+    <button *ngIf="authService.isAdmin$ | async" (click)="createTeam.emit()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-lg shadow-md transition-all transform hover:scale-105 active:scale-95">
+        + Register New Team
+    </button>
+</div>
+
+<div *ngIf="openDropdown" class="fixed inset-0 z-40" (click)="openDropdown = null"></div>
+
+<div class="flex flex-wrap items-center gap-3 mb-6">
+    <div class="relative flex-1 min-w-[200px] max-w-xs">
+        <input type="text" [(ngModel)]="searchQuery" placeholder="🔍 Search teams..."
+               class="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-3.5 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition">
+    </div>
+    <div class="relative">
+        <button (click)="toggleDropdown('filter', $event)"
+                class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-800/60 border border-gray-700/60 text-xs font-medium text-gray-300 hover:bg-gray-700/60 hover:border-gray-600 transition-all">
+            <span>{{ filterLabel }}</span>
+            <svg class="w-3.5 h-3.5 text-gray-500 transition-transform" [class.rotate-180]="openDropdown === 'filter'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div *ngIf="openDropdown === 'filter'"
+             class="absolute top-full left-0 mt-1.5 min-w-[200px] rounded-xl bg-gray-800 border border-gray-700 shadow-2xl shadow-black/50 py-1.5 z-50"
+             (click)="$event.stopPropagation()">
+            <button *ngFor="let opt of filterOptions" (click)="setFilter(opt.value)"
+                    class="block w-full text-left px-4 py-2 text-xs font-medium transition-colors"
+                    [class.text-indigo-400]="filterBy === opt.value"
+                    [class.text-gray-300]="filterBy !== opt.value"
+                    [class.bg-indigo-600/10]="filterBy === opt.value"
+                    [class.hover:bg-gray-700/50]="filterBy !== opt.value">
+                {{ opt.label }}
+            </button>
+        </div>
+    </div>
+    <div class="relative">
+        <button (click)="toggleDropdown('sort', $event)"
+                class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-800/60 border border-gray-700/60 text-xs font-medium text-gray-300 hover:bg-gray-700/60 hover:border-gray-600 transition-all">
+            <span>{{ sortLabel }}</span>
+            <svg class="w-3.5 h-3.5 text-gray-500 transition-transform" [class.rotate-180]="openDropdown === 'sort'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div *ngIf="openDropdown === 'sort'"
+             class="absolute top-full left-0 mt-1.5 min-w-[200px] rounded-xl bg-gray-800 border border-gray-700 shadow-2xl shadow-black/50 py-1.5 z-50"
+             (click)="$event.stopPropagation()">
+            <button *ngFor="let opt of sortOptions" (click)="setSort(opt.value)"
+                    class="block w-full text-left px-4 py-2 text-xs font-medium transition-colors"
+                    [class.text-indigo-400]="sortBy === opt.value"
+                    [class.text-gray-300]="sortBy !== opt.value"
+                    [class.bg-indigo-600/10]="sortBy === opt.value"
+                    [class.hover:bg-gray-700/50]="sortBy !== opt.value">
+                {{ opt.label }}
+            </button>
+        </div>
+    </div>
+</div>
+
+<div *ngIf="loading" class="text-center py-16">
+    <div class="inline-block w-8 h-8 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+    <p class="text-gray-400 mt-3">Loading teams...</p>
+</div>
+
+<div *ngIf="!loading" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div *ngFor="let team of searchedTeams" class="group bg-gray-800/80 rounded-xl border border-gray-700 shadow-lg overflow-hidden transition-all duration-200 hover:shadow-xl hover:border-indigo-500/40">
+        <div class="p-5">
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-3 flex-1 min-w-0 pr-3">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-lg font-bold text-white flex-shrink-0 shadow-lg">
+                        {{ getInitials(team.name) }}
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="text-lg font-bold text-white truncate">{{ team.name }}</h3>
+                        <p class="text-xs text-gray-400 truncate">👤 {{ team.captainName }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <span *ngIf="hasActiveEnrollments(team)" class="text-xs bg-amber-500/20 text-amber-400 font-semibold px-2.5 py-1 rounded-full border border-amber-500/30 whitespace-nowrap" title="Participating in a league">
+                        🏆 In League
+                    </span>
+                    <ng-container *ngIf="authService.isAdmin$ | async">
+                        <button *ngIf="!hasActiveEnrollments(team)" (click)="onDelete(team)"
+                                class="opacity-0 group-hover:opacity-100 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0"
+                                title="Delete Team">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </ng-container>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400 mt-2">
+                <span>🎮 {{ team.sport?.name || '—' }}</span>
+                <span>⭐ <span class="text-yellow-400 font-semibold">{{ team.prestigePoints }}</span> prestige</span>
+                <span class="w-full">🏟️ {{ getStadiumName(team.stadiumId) }}</span>
+                <span *ngIf="team.groupLabel">📋 {{ team.groupLabel }}</span>
+            </div>
+            <button (click)="onShowDetails(team)"
+                    class="w-full mt-3 bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white text-sm font-semibold py-2 px-3 rounded-lg border border-indigo-500/20 hover:border-indigo-500 transition-all">
+                📋 View Details
+            </button>
+        </div>
+    </div>
+</div>
+
+<div *ngIf="!loading && searchedTeams.length === 0" class="text-center py-16 bg-gray-800/10 rounded-xl border border-dashed border-gray-800 mt-6">
+    <span class="text-5xl block mb-4">🛡️</span>
+    <p class="text-gray-400 text-lg font-medium mb-1">{{ searchQuery ? 'No teams match "' + searchQuery + '"' : 'No teams registered for this sport' }}</p>
+    <p class="text-gray-500 text-sm">Click "+ Register New Team" to add the first club!</p>
+</div>

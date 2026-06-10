@@ -1,0 +1,9 @@
+<div class="flex items-center gap-2 text-sm text-gray-400 mb-6">
+  <ng-container *ngFor="let seg of segments; let last = last; let i = index">
+    <button *ngIf="!last" (click)="navigate.emit(i)" class="hover:text-white transition-colors">
+      {{ seg }}
+    </button>
+    <span *ngIf="last" class="text-white font-medium">{{ seg }}</span>
+    <span *ngIf="!last" class="text-gray-600">›</span>
+  </ng-container>
+</div>

@@ -1,0 +1,57 @@
+<footer class="bg-gray-900/60 border-t border-gray-800/80 backdrop-blur-md relative overflow-hidden">
+    <div class="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute top-0 right-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12">
+        <div class="flex flex-col md:flex-row flex-wrap justify-between gap-12 text-center">
+
+            <div class="flex-1 min-w-[280px] max-w-md mx-auto">
+                <div class="flex items-center justify-center gap-2 mb-4">
+                    <span class="text-xl">🏆</span>
+                    <h3 class="text-base font-black text-white uppercase tracking-wider bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                        TournamentMaster
+                    </h3>
+                </div>
+                <p class="text-xs text-gray-400 leading-relaxed">
+                    Tournament management platform. Create and manage tournaments, teams, players and stadiums across multiple sports.
+                </p>
+            </div>
+
+            <div class="min-w-[160px]">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Quick Links</h3>
+                <div class="grid grid-cols-2 gap-x-8 gap-y-2.5 max-w-[200px] mx-auto">
+                    <a (click)="goTo('tournaments')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Tournaments</a>
+                    <a (click)="goTo('teams')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Teams</a>
+                    <a (click)="goTo('players')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Players</a>
+                    <a (click)="goTo('stadiums')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Stadiums</a>
+                </div>
+            </div>
+
+            <div class="min-w-[160px]">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Connect</h3>
+                <div class="flex justify-center">
+                    <a href="https://github.com/marcovegabcb" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gray-800/40 border border-gray-700/40 text-xs text-gray-300 hover:text-white hover:bg-gray-800 hover:border-gray-600 transition-all group shadow-sm">
+                        <svg class="w-4 h-4 fill-current text-gray-400 group-hover:text-white transition-colors" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                        </svg>
+                        <span class="font-medium">@marcovegabcb</span>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pb-8">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 rounded-2xl bg-gradient-to-r from-gray-800/60 via-gray-800/40 to-gray-800/60 border border-gray-700/40 shadow-lg">
+            <div class="flex items-center gap-3 text-sm tracking-wide">
+                <span class="hover:scale-125 transition-transform cursor-default inline-block">⚽</span>
+                <span class="hover:scale-125 transition-transform cursor-default inline-block">🏀</span>
+                <span class="hover:scale-125 transition-transform cursor-default inline-block">🎾</span>
+                <span class="hover:scale-125 transition-transform cursor-default inline-block">🏐</span>
+            </div>
+            <p class="text-xs font-medium text-gray-500 tracking-wide">&copy; {{ currentYear }} TournamentMaster. All rights reserved.</p>
+        </div>
+    </div>
+</footer>

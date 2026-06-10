@@ -1,0 +1,128 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all">
+    <div class="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+        <button (click)="close()" class="absolute top-5 right-5 text-gray-400 hover:text-white transition">✕</button>
+
+        <div *ngIf="errorMessage" class="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400">
+            {{ errorMessage }}
+        </div>
+
+        <!-- Step: Choose mode -->
+        <div *ngIf="requestMode === 'choose'">
+            <h3 class="text-xl font-bold text-white mb-1">📝 Request Enrollment</h3>
+            <p class="text-xs text-gray-400 mb-6">Choose how you want to enroll in <strong class="text-indigo-400">{{ tournament?.name }}</strong>{{ tournament?.venueConfig !== 2 ? ' (🏟️ own stadium required).' : '.' }}</p>
+            <div class="space-y-4">
+                <button (click)="setMode('existing')"
+                        class="w-full flex items-center gap-4 p-5 rounded-xl bg-gray-700/30 border border-gray-700 hover:border-indigo-500/50 hover:bg-indigo-600/10 text-left transition-all group">
+                    <span class="text-3xl">🛡️</span>
+                    <div>
+                        <p class="text-white font-bold text-base group-hover:text-indigo-400 transition">Use existing team</p>
+                        <p class="text-gray-400 text-xs mt-0.5">Select one of your registered teams.</p>
+                    </div>
+                </button>
+                <button (click)="setMode('new')"
+                        class="w-full flex items-center gap-4 p-5 rounded-xl bg-gray-700/30 border border-gray-700 hover:border-emerald-500/50 hover:bg-emerald-600/10 text-left transition-all group">
+                    <span class="text-3xl">✨</span>
+                    <div>
+                        <p class="text-white font-bold text-base group-hover:text-emerald-400 transition">Create new team</p>
+                        <p class="text-gray-400 text-xs mt-0.5">Register a new team with its players.</p>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step: Existing team -->
+        <div *ngIf="requestMode === 'existing'">
+            <h3 class="text-xl font-bold text-white mb-1">🛡️ Select team</h3>
+            <p class="text-xs text-gray-400 mb-6">Choose a team to request enrollment in <strong class="text-indigo-400">{{ tournament?.name }}</strong>.</p>
+            <div class="space-y-3 max-h-60 overflow-y-auto pr-1">
+                <div *ngFor="let team of availableTeams"
+                     (click)="selectTeam(team)"
+                     class="flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-all"
+                     [class.border-indigo-500/60]="requestSelectedTeamId === team.id"
+                     [class.bg-indigo-600/15]="requestSelectedTeamId === team.id"
+                     [class.border-gray-700]="requestSelectedTeamId !== team.id"
+                     [class.hover:border-gray-600]="requestSelectedTeamId !== team.id">
+                    <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+                        {{ team.name.charAt(0) }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-white truncate">{{ team.name }}</p>
+                        <p class="text-xs text-gray-400">⭐ {{ team.prestigePoints }} prestige · 👥 {{ team.players?.length || 0 }} players · {{ team.captainName }}</p>
+                        <p class="text-xs mt-0.5" [class.text-emerald-400]="team.stadiumId" [class.text-red-400]="!team.stadiumId">
+                            {{ team.stadiumId ? '🏟️ ' + (team.stadium?.name || 'Has stadium') : '⛔ No stadium' }}
+                        </p>
+                    </div>
+                    <div *ngIf="requestSelectedTeamId === team.id" class="text-indigo-400 text-lg">✓</div>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button (click)="setMode('choose')" class="w-1/3 bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 px-4 rounded-lg text-sm transition">Back</button>
+                <button (click)="submitWithExisting()"
+                        [disabled]="!requestSelectedTeamId || requesting"
+                        class="w-2/3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg text-sm shadow-md transition-all">
+                    <span *ngIf="requesting" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle"></span>
+                    {{ requesting ? 'Sending...' : 'Send Request' }}
+                </button>
+            </div>
+        </div>
+
+        <!-- Step: New team -->
+        <div *ngIf="requestMode === 'new'">
+            <h3 class="text-xl font-bold text-white mb-1">✨ Create New Team</h3>
+            <p class="text-xs text-gray-400 mb-6">Register a new team to enroll in <strong class="text-indigo-400">{{ tournament?.name }}</strong>.</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Team Name</label>
+                    <input type="text" [(ngModel)]="newTeamRequest.name" placeholder="e.g., FC Stars"
+                           class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Captain Name (optional)</label>
+                    <input type="text" [(ngModel)]="newTeamRequest.captainName" placeholder="Defaults to first player"
+                           class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Logo URL (optional)</label>
+                    <input type="text" [(ngModel)]="newTeamRequest.logoUrl" placeholder="https://..."
+                           class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                        Home Stadium{{ tournament?.venueConfig !== 2 ? ' (required for this tournament)' : ' (optional)' }}
+                    </label>
+                    <select [(ngModel)]="newTeamRequest.stadiumId"
+                            class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+                        <option [ngValue]="null">-- {{ tournament?.venueConfig !== 2 ? 'Select a stadium' : 'No stadium' }} --</option>
+                        <option *ngFor="let stadium of tournament?.stadiums || []" [ngValue]="stadium.id">🏟️ {{ stadium.name }}</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Players</label>
+                        <button (click)="addPlayer()" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition">+ Add Player</button>
+                    </div>
+                    <div class="space-y-2">
+                        <div *ngFor="let player of newTeamPlayers; let i = index" class="flex items-center gap-2">
+                            <input type="text" [(ngModel)]="player.firstName" placeholder="First name"
+                                   class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+                            <input type="text" [(ngModel)]="player.lastName" placeholder="Last name"
+                                   class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+                            <input type="number" [(ngModel)]="player.jerseyNumber" placeholder="#"
+                                   class="w-14 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white text-center focus:outline-none focus:border-indigo-500 transition">
+                            <button *ngIf="newTeamPlayers.length > 1" (click)="removePlayer(i)" class="text-red-400 hover:text-red-300 text-xs font-bold p-1">✕</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button (click)="setMode('choose')" class="w-1/3 bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 px-4 rounded-lg text-sm transition">Back</button>
+                <button (click)="submitWithNew()"
+                        [disabled]="requesting"
+                        class="w-2/3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg text-sm shadow-md transition-all">
+                    <span *ngIf="requesting" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle"></span>
+                    {{ requesting ? 'Creating...' : 'Create & Request' }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

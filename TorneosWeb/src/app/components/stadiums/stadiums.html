@@ -1,0 +1,36 @@
+<app-breadcrumb [segments]="breadcrumbSegments" (navigate)="onBreadcrumb($event)"></app-breadcrumb>
+
+<app-stadium-list-view *ngIf="viewMode === 'list'"
+    [stadiums]="allStadiums"
+    [activeSportId]="activeSportId"
+    [loading]="loading"
+    (createStadium)="openModal()"
+    (showDetails)="showDetails($event)"
+    (deleteStadium)="onDeleteStadium($event)">
+</app-stadium-list-view>
+
+<app-stadium-detail-view *ngIf="viewMode === 'detail'"
+    [stadium]="stadiumDetails"
+    (back)="backToList()"
+    (teamClick)="onTeamClick($event)"
+    (tournamentClick)="onTournamentClick($event)">
+</app-stadium-detail-view>
+
+<app-stadium-team-detail *ngIf="viewMode === 'teamDetail'"
+    [team]="teamDetails"
+    (back)="backToStadiumDetail()">
+</app-stadium-team-detail>
+
+<app-stadium-tournament-detail *ngIf="viewMode === 'tournamentDetail'"
+    [tournament]="tournamentDetails"
+    (back)="backToStadiumDetail()">
+</app-stadium-tournament-detail>
+
+<app-stadium-create-modal *ngIf="isModalOpen"
+    [activeSportId]="activeSportId"
+    (created)="onStadiumCreated($event)"
+    (closed)="closeModal()">
+</app-stadium-create-modal>
+
+<app-success-modal [show]="showSuccessModal" [message]="successMessage" (close)="closeSuccessModal()"></app-success-modal>
+<app-error-modal [show]="showErrorModal" [message]="errorMessage" (close)="closeErrorModal()"></app-error-modal>

@@ -1,0 +1,123 @@
+<app-breadcrumb [segments]="breadcrumbSegments" (navigate)="onBreadcrumb($event)"></app-breadcrumb>
+
+<!-- ========== LIST VIEW ========== -->
+<div *ngIf="viewMode === 'list'">
+
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h2 class="text-3xl font-extrabold text-white tracking-tight">🏆 Tournaments</h2>
+            <p class="text-sm text-gray-400 mt-1">Active competitions synchronized from PostgreSQL database.</p>
+        </div>
+        <button *ngIf="authService.isAdmin$ | async" (click)="onCreateTournament()"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-lg shadow-md transition-all transform hover:scale-105 active:scale-95">
+            + Create Tournament
+        </button>
+    </div>
+
+    <app-tournament-list-view
+        [list]="list"
+        [sportsList]="sportsList"
+        (showSchedule)="onShowSchedule($event)"
+        (showStandings)="onShowStandings($event)"
+        (deleteTournament)="onDeleteTournament($event)"
+        (closeRegistration)="onCloseRegistration($event)"
+        (openRegister)="onOpenRegister($event)"
+        (openRequest)="onOpenRequest($event)"
+        (viewTeams)="onViewTeams($event)"
+        (goToGenerator)="goToGenerator.emit($event)"
+        (navigateHome)="onNavigateHome()"
+        (tournamentCreated)="tournamentCreated.emit()">
+    </app-tournament-list-view>
+
+</div>
+
+<!-- ========== SCHEDULE VIEW ========== -->
+<div *ngIf="viewMode === 'schedule' && selectedTournament">
+    <app-tournament-schedule-view
+        [tournament]="selectedTournament"
+        (back)="backToList()"
+        (fixtureGenerated)="onFixtureGenerated()">
+    </app-tournament-schedule-view>
+</div>
+
+<!-- ========== STANDINGS VIEW ========== -->
+<div *ngIf="viewMode === 'standings' && selectedTournament">
+    <app-tournament-standings-view
+        [tournament]="selectedTournament"
+        (back)="backToList()">
+    </app-tournament-standings-view>
+</div>
+
+<!-- ========== MODALS ========== -->
+
+<app-tournament-create-modal
+    *ngIf="showCreateModal"
+    [activeSportId]="activeSportId"
+    [stadiumsList]="stadiumsList"
+    (created)="onTournamentCreated($event)"
+    (closed)="showCreateModal = false">
+</app-tournament-create-modal>
+
+<app-tournament-register-modal
+    *ngIf="showRegisterModal"
+    [tournament]="selectedTournament"
+    [teamsList]="teamsList"
+    [activeSportId]="activeSportId"
+    (registered)="onTeamRegistered($event)"
+    (closed)="showRegisterModal = false">
+</app-tournament-register-modal>
+
+<app-tournament-request-modal
+    *ngIf="showRequestModal"
+    [tournament]="selectedTournament"
+    [teamsList]="teamsList"
+    [activeSportId]="activeSportId"
+    (requested)="onRequestSent()"
+    (closed)="showRequestModal = false">
+</app-tournament-request-modal>
+
+<!-- View Teams modal -->
+<div *ngIf="showTeamsModal && teamsModalData" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all">
+    <div class="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+        <button (click)="closeTeamsModal()" class="absolute top-5 right-5 text-gray-400 hover:text-white transition">✕</button>
+        <h3 class="text-xl font-bold text-white mb-1">👥 Enrolled Teams</h3>
+        <p class="text-xs text-gray-400 mb-6">Teams participating in <strong class="text-indigo-400">{{ teamsModalData.name }}</strong></p>
+        <div *ngIf="!teamsModalData.teamTournaments?.length" class="text-center py-8">
+            <span class="text-3xl block mb-2">🛡️</span>
+            <p class="text-gray-400 text-sm">No teams enrolled yet.</p>
+        </div>
+        <div *ngIf="teamsModalData.teamTournaments?.length > 0" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <div *ngFor="let tt of teamsModalData.teamTournaments"
+                 class="flex items-center gap-3 p-3 rounded-lg bg-gray-700/30 border border-gray-700/50">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white shrink-0">
+                    {{ tt.team?.name?.charAt(0) || '?' }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-white truncate">{{ tt.team?.name || '—' }}</p>
+                    <p class="text-xs text-gray-400">⭐ {{ tt.team?.prestigePoints || '—' }} prestige</p>
+                </div>
+                <button *ngIf="authService.isAdmin$ | async"
+                        (click)="removeTeamFromTournament(tt.teamId || tt.team?.id)"
+                        class="text-red-400 hover:text-red-300 text-lg font-bold p-1 transition">&times;</button>
+            </div>
+        </div>
+        <div class="mt-6">
+            <button (click)="closeTeamsModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 px-4 rounded-lg text-sm transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Success / Error modals -->
+<app-success-modal
+    *ngIf="showSuccessModal"
+    [message]="successMessage"
+    [secondaryLabel]="successSecondaryLabel"
+    (close)="closeSuccessModal()"
+    (secondaryAction)="onSecondaryAction()">
+</app-success-modal>
+
+<app-error-modal
+    *ngIf="showErrorModal"
+    [message]="errorMessage"
+    (close)="closeErrorModal()">
+</app-error-modal>

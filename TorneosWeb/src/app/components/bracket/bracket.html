@@ -1,0 +1,106 @@
+<div class="bracket-scroll">
+  <div class="bracket-flex">
+
+    <div class="bracket-side left-side">
+      <div *ngFor="let round of leftBracket" class="bracket-round">
+        <div class="round-label">{{ round.stage }}</div>
+        <div class="round-grid" [style.gridTemplateRows]="'repeat(' + gridRows + ', 1fr)'">
+          <div *ngFor="let tie of round.ties; let t = index"
+               class="match-card"
+               [class.empty-card]="tie.isEmpty"
+               [style.gridRow]="gridRow(round.roundIndex, t)">
+            <ng-container *ngIf="!tie.isEmpty">
+              <ng-container *ngTemplateOutlet="tieTemplate; context: { $implicit: tie }"></ng-container>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bracket-center">
+      <div *ngFor="let round of centerBracket" class="bracket-round center-round">
+        <div class="round-label highlight">{{ round.stage }}</div>
+        <div class="round-grid" [style.gridTemplateRows]="'repeat(' + gridRows + ', 1fr)'">
+          <div *ngFor="let tie of round.ties; let t = index"
+               class="match-card final-card"
+               [class.empty-card]="tie.isEmpty"
+               [style.gridRow]="centerGridRow(t)">
+            <ng-container *ngIf="!tie.isEmpty">
+              <ng-container *ngTemplateOutlet="tieTemplate; context: { $implicit: tie }"></ng-container>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bracket-side right-side">
+      <div *ngFor="let round of rightBracketReversed" class="bracket-round">
+        <div class="round-label">{{ round.stage }}</div>
+        <div class="round-grid" [style.gridTemplateRows]="'repeat(' + gridRows + ', 1fr)'">
+          <div *ngFor="let tie of round.ties; let t = index"
+               class="match-card"
+               [class.empty-card]="tie.isEmpty"
+               [style.gridRow]="gridRow(round.roundIndex, t)">
+            <ng-container *ngIf="!tie.isEmpty">
+              <ng-container *ngTemplateOutlet="tieTemplate; context: { $implicit: tie, side: 'right' }"></ng-container>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<ng-template #tieTemplate let-tie let-side="side">
+  <div class="match-teams">
+    <ng-container *ngIf="tie.legs.length === 1; else multiLeg">
+      <ng-container *ngIf="tie.homeTeam && !tie.awayTeam; else twoTeams">
+        <div class="team-row">
+          <span class="bye-arrow" *ngIf="side === 'right'">←</span>
+          <span class="team-name">{{ tie.homeTeam.name }}</span>
+          <span class="bye-arrow" *ngIf="side !== 'right'">→</span>
+        </div>
+      </ng-container>
+      <ng-template #twoTeams>
+        <div class="team-row" [class.winner]="tieWinner(tie, true)">
+          <span class="team-name">{{ tie.homeTeam?.name || 'TBD' }}</span>
+          <span class="team-score" [class.winner]="tieWinner(tie, true)">
+            {{ tie.legs[0].isPlayed ? tie.legs[0].homeScore : '-' }}
+          </span>
+        </div>
+        <div class="team-row" [class.winner]="tieWinner(tie, false)">
+          <span class="team-name">{{ tie.awayTeam?.name || 'TBD' }}</span>
+          <span class="team-score" [class.winner]="tieWinner(tie, false)">
+            {{ tie.legs[0].isPlayed ? tie.legs[0].awayScore : '-' }}
+          </span>
+        </div>
+      </ng-template>
+    </ng-container>
+    <ng-template #multiLeg>
+      <div class="legs-container">
+        <div class="leg-row" *ngFor="let leg of tie.legs">
+          <span class="leg-label">{{ leg.label }}</span>
+          <div class="leg-teams">
+            <div class="team-row">
+              <span class="team-name">{{ leg.homeTeam?.name || 'TBD' }}</span>
+              <span class="team-score">{{ leg.isPlayed ? leg.homeScore : '-' }}</span>
+            </div>
+            <div class="team-row">
+              <span class="team-name">{{ leg.awayTeam?.name || 'TBD' }}</span>
+              <span class="team-score">{{ leg.isPlayed ? leg.awayScore : '-' }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="aggregate-row" *ngIf="tiePlayed(tie) && tie.legs.length > 1">
+          <span class="team-name">Agg.</span>
+          <span class="aggregate-score">
+            <span [class.winner]="tieWinner(tie, true)">{{ aggregateScore(tie, true) }}</span>
+            <span class="text-gray-600 mx-1">-</span>
+            <span [class.winner]="tieWinner(tie, false)">{{ aggregateScore(tie, false) }}</span>
+          </span>
+        </div>
+      </div>
+    </ng-template>
+  </div>
+</ng-template>

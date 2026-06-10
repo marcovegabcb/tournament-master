@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Torneos.API/Torneos.API.csproj" />
+  <Project Path="Torneos.Tests/Torneos.Tests.csproj" />
+</Solution>

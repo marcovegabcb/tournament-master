@@ -1,0 +1,27 @@
+<app-breadcrumb [segments]="breadcrumbSegments" (navigate)="onBreadcrumb($event)"></app-breadcrumb>
+
+<app-player-list-view *ngIf="viewMode === 'list'"
+    [players]="allPlayers"
+    [activeSportId]="activeSportId"
+    [loading]="loading"
+    [teamsList]="teamsList"
+    [tournaments]="tournaments"
+    (createPlayer)="openModal()"
+    (showDetails)="showDetails($event)"
+    (deletePlayer)="onDeletePlayer($event)">
+</app-player-list-view>
+
+<app-player-detail-view *ngIf="viewMode === 'detail'"
+    [player]="playerDetails"
+    (back)="backToList()">
+</app-player-detail-view>
+
+<app-player-create-modal *ngIf="isModalOpen"
+    [teamsList]="teamsList"
+    [activeSportId]="activeSportId"
+    (created)="onPlayerCreated($event)"
+    (closed)="closeModal()">
+</app-player-create-modal>
+
+<app-success-modal [show]="showSuccessModal" [message]="successMessage" (close)="closeSuccessModal()"></app-success-modal>
+<app-error-modal [show]="showErrorModal" [message]="errorMessage" (close)="closeErrorModal()"></app-error-modal>
