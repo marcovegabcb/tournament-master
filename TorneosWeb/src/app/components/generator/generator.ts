@@ -13,6 +13,7 @@ import { SuccessModalComponent } from '../shared/success-modal/success-modal';
 import { ErrorModalComponent } from '../shared/error-modal/error-modal';
 import { BreadcrumbComponent } from '../shared/breadcrumb/breadcrumb';
 import { getSportConfig, type SportConfig, type StatField } from '../../sports';
+import { getSimulator, randInt } from '../../simulation';
 
 interface PlayerFormEntry {
   playerId: number;
@@ -65,6 +66,8 @@ export class GeneratorComponent implements OnDestroy {
 
   showActionModal: boolean = false;
   actionType: 'simulate' | 'report' = 'simulate';
+  // La simulación reutiliza el formulario de reporte; esta bandera solo cambia el aviso/título.
+  isSimulated: boolean = false;
   selectedMatch: Match | null = null;
 
   formHomeScore: number = 0;
@@ -233,16 +236,20 @@ export class GeneratorComponent implements OnDestroy {
   }
 
   openSimulate(match: Match) {
-    this.selectedMatch = match;
-    this.actionType = 'simulate';
-    this.showActionModal = true;
-    this.cdr.detectChanges();
+    if (this.isLockedVuelta(match)) return; // la vuelta se bloquea hasta rellenar la ida
+    this.prepareResultModal(match, true);
   }
 
   openReport(match: Match) {
     if (this.isLockedVuelta(match)) return; // la vuelta se bloquea hasta rellenar la ida
+    this.prepareResultModal(match, false);
+  }
+
+  /** Abre el formulario de resultado. Si `simulate`, lo rellena al azar tras cargar las plantillas. */
+  private prepareResultModal(match: Match, simulate: boolean) {
     this.selectedMatch = match;
-    this.actionType = 'report';
+    this.actionType = 'report'; // la simulación usa el mismo formulario de reporte
+    this.isSimulated = simulate;
     this.formHomeScore = 0;
     this.formAwayScore = 0;
     this.formHomeTiebreak = null;
@@ -282,6 +289,7 @@ export class GeneratorComponent implements OnDestroy {
           stats: Object.fromEntries(this.statFields.map(f => [f.key, 0]))
         }));
         this.loadingPlayers = false;
+        if (simulate) this.applySimulation();
         this.cdr.detectChanges();
       },
       error: () => {
@@ -292,10 +300,78 @@ export class GeneratorComponent implements OnDestroy {
     });
   }
 
+  /** Vuelve a tirar los dados sobre el partido ya cargado en el modal. */
+  rerollSimulation() {
+    if (this.loadingPlayers) return;
+    this.saveError = '';
+    this.applySimulation();
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Rellena el formulario con un resultado aleatorio coherente. Se apoya en los mismos
+   * guardas del reporte (recalcScore, needsPenalties/GoldenSet/OvertimeWarning) para garantizar
+   * la coherencia: vuelve a tirar si sale un empate de eliminatoria que no se puede resolver.
+   */
+  private applySimulation() {
+    const cfg = this.sportConfig;
+    const simulate = getSimulator(this.sportName);
+    if (!cfg || !simulate) {
+      this.saveError = `No simulation available for "${this.sportName || 'this sport'}".`;
+      return;
+    }
+
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const res = simulate(this.formHomePlayers.length, this.formAwayPlayers.length, cfg);
+
+      this.formHomePlayers.forEach((p, i) => { p.stats = { ...res.homeStats[i] }; });
+      this.formAwayPlayers.forEach((p, i) => { p.stats = { ...res.awayStats[i] }; });
+
+      if (cfg.useSets) {
+        const maxSets = this.maxSets;
+        this.formHomeSets = Array(maxSets).fill(0);
+        this.formAwaySets = Array(maxSets).fill(0);
+        (res.homeSets ?? []).forEach((v, i) => { if (i < maxSets) this.formHomeSets[i] = v; });
+        (res.awaySets ?? []).forEach((v, i) => { if (i < maxSets) this.formAwaySets[i] = v; });
+      } else {
+        this.formHomeScore = res.homeScore;
+        this.formAwayScore = res.awayScore;
+      }
+      this.recalcScore();
+
+      // Desempate de eliminatoria reutilizando la misma detección que el reporte manual.
+      this.formHomeTiebreak = null;
+      this.formAwayTiebreak = null;
+      if (this.needsOvertimeWarning()) continue; // empate irresoluble (p.ej. básquet): repetir
+      if (this.needsPenalties() || this.needsGoldenSet()) {
+        const [h, a] = this.simulateTiebreak();
+        this.formHomeTiebreak = h;
+        this.formAwayTiebreak = a;
+      }
+      return;
+    }
+    // Tras varios intentos seguimos en empate irresoluble: que lo ajuste el usuario.
+    this.saveError = 'Could not simulate a decisive result. Adjust the score manually.';
+  }
+
+  /** Genera un desempate (penaltis o golden set) que nunca queda igualado. */
+  private simulateTiebreak(): [number, number] {
+    if (this.needsGoldenSet()) {
+      const pts = this.sportConfig?.goldenSetPoints ?? 15;
+      const loser = randInt(8, Math.max(8, pts - 2));
+      return Math.random() < 0.5 ? [pts, loser] : [loser, pts];
+    }
+    let h = randInt(3, 5);
+    let a = randInt(3, 5);
+    while (h === a) a = randInt(3, 5);
+    return [h, a];
+  }
+
   closeActionModal() {
     this.showActionModal = false;
     this.selectedMatch = null;
     this.submittingReport = false;
+    this.isSimulated = false;
     this.cdr.detectChanges();
   }
 

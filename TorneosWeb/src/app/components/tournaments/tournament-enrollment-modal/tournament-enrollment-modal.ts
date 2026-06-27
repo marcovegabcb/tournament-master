@@ -79,6 +79,36 @@ export class TournamentEnrollmentModalComponent {
     return this.availableTeams.filter(t => t.name.toLowerCase().includes(term));
   }
 
+  teamMeetsRequirements(team: Team): { ok: boolean; reasons: string[] } {
+    const reasons: string[] = [];
+    const t = this.tournament;
+    if (!t) return { ok: true, reasons: [] };
+
+    if (t.minPrestigeRequired > 0 && (team.prestigePoints ?? 0) < t.minPrestigeRequired)
+      reasons.push(`Needs ${t.minPrestigeRequired}⭐ prestige (has ${team.prestigePoints ?? 0})`);
+
+    const pc = team.playerCount ?? 0;
+    if (t.minPlayersPerTeam > 0 && pc < t.minPlayersPerTeam)
+      reasons.push(`Needs at least ${t.minPlayersPerTeam} players (has ${pc})`);
+    if (t.maxPlayersPerTeam > 0 && pc > t.maxPlayersPerTeam)
+      reasons.push(`Allows at most ${t.maxPlayersPerTeam} players (has ${pc})`);
+
+    if (this.activeSportId !== 3 && (t.venueConfig === 0 || t.venueConfig === 1)) {
+      if (!team.stadiumId)
+        reasons.push('Requires a home stadium');
+    }
+
+    return { ok: reasons.length === 0, reasons };
+  }
+
+  get validTeams(): Team[] {
+    return this.filteredTeams.filter(t => this.teamMeetsRequirements(t).ok);
+  }
+
+  get invalidTeams(): Team[] {
+    return this.filteredTeams.filter(t => !this.teamMeetsRequirements(t).ok);
+  }
+
   get canAddPlayer(): boolean {
     const max = this.tournament?.maxPlayersPerTeam ?? 0;
     return max === 0 || this.newTeamPlayers.length < max;

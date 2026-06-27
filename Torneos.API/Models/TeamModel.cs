@@ -18,6 +18,7 @@ public class TeamModel
     {
         var query = _context.Teams
             .AsNoTracking()
+            .Include(t => t.Players)
             .Include(t => t.Stadium)
             .Include(t => t.Sport)
             .Include(t => t.TeamTournaments)

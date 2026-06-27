@@ -156,6 +156,10 @@ public class MatchModel
         }
 
         await _context.SaveChangesAsync();
+
+        if (match.Tournament.Format == TournamentFormat.League)
+            await TryCompleteLeagueAsync(match.TournamentId, match.Tournament.VenueConfig);
+
         return true;
     }
 
@@ -264,10 +268,15 @@ public class MatchModel
         await PlaceWinnerInNextRoundAsync(match.TournamentId, GetNextKnockoutStage(baseStage), slotIdx, winner.Value, twoLeg: true);
     }
 
-    /** Coloca al ganador de un cruce en la siguiente ronda (en ambas piernas si es a doble partido). */
+    /** Coloca al ganador de un cruce en la siguiente ronda (en ambas piernas si es a doble partido).
+        Si era la final, cierra el torneo y reparte prestigio. */
     private async Task PlaceWinnerInNextRoundAsync(int tournamentId, string? nextBaseStage, int crossIdx, int winnerId, bool twoLeg)
     {
-        if (nextBaseStage == null) return; // era la final → campeón, no hay siguiente ronda
+        if (nextBaseStage == null)
+        {
+            await CompleteKnockoutTournamentAsync(tournamentId, winnerId);
+            return;
+        }
 
         int nextCrossIdx = crossIdx / 2;
         bool isHomeSide = crossIdx % 2 == 0;
@@ -306,6 +315,225 @@ public class MatchModel
             if (isHomeSide) nextVuelta[nextCrossIdx].AwayTeamId = winnerId;
             else nextVuelta[nextCrossIdx].HomeTeamId = winnerId;
         }
+    }
+
+    /** Cierra un torneo eliminatorio (Finished) y reparte prestigio:
+        campeón +100, subcampeón +50, eliminados en primera ronda -30. */
+    private async Task CompleteKnockoutTournamentAsync(int tournamentId, int winnerId)
+    {
+        var tournament = await _context.Tournaments.FindAsync(tournamentId);
+        if (tournament == null) return;
+
+        tournament.Status = TournamentStatus.Finished;
+
+        var champion = await _context.Teams.FindAsync(winnerId);
+        if (champion != null)
+            champion.PrestigePoints += 100;
+
+        var matches = await _context.Matches
+            .Where(m => m.TournamentId == tournamentId)
+            .ToListAsync();
+
+        if (matches.Count == 0) return;
+
+        // Subcampeón → +50: el que perdió la Final
+        var finalMatches = matches.Where(m => m.IsPlayed &&
+            (m.Stage == "Final" || m.Stage == "Final - Vuelta") && m.WinnerTeamId.HasValue).ToList();
+        foreach (var fm in finalMatches)
+        {
+            int? runnerUpId = fm.HomeTeamId == fm.WinnerTeamId ? fm.AwayTeamId : fm.HomeTeamId;
+            if (runnerUpId.HasValue)
+            {
+                var runnerUp = await _context.Teams.FindAsync(runnerUpId.Value);
+                if (runnerUp != null) runnerUp.PrestigePoints += 50;
+            }
+        }
+
+        // Primera ronda → -30: la ronda con más partidos
+        var roundGroups = matches
+            .GroupBy(m => BaseStage(m.Stage))
+            .Select(g => new { Stage = g.Key, Count = g.Count() })
+            .OrderByDescending(g => g.Count)
+            .ToList();
+
+        string firstRoundStage = roundGroups.First().Stage;
+        if (firstRoundStage == "Final") return;
+
+        bool twoLeg = matches.Any(m => m.Stage == firstRoundStage + " - Ida");
+
+        if (twoLeg)
+        {
+            var idas = matches.Where(m => m.Stage == firstRoundStage + " - Ida")
+                .OrderBy(m => m.Id).ToList();
+            var vueltas = matches.Where(m => m.Stage == firstRoundStage + " - Vuelta")
+                .OrderBy(m => m.Id).ToList();
+
+            for (int i = 0; i < Math.Min(idas.Count, vueltas.Count); i++)
+            {
+                var ida = idas[i];
+                var vuelta = vueltas[i];
+                if (!ida.IsPlayed || !vuelta.IsPlayed) continue;
+                if (ida.HomeTeamId == null || ida.AwayTeamId == null) continue;
+                if (vuelta.HomeTeamId == null || vuelta.AwayTeamId == null) continue;
+
+                int? aggWinner = KnockoutResolver.ResolveTwoLeg(
+                    ida.HomeTeamId.Value, ida.AwayTeamId.Value,
+                    ida.HomeScore, ida.AwayScore,
+                    vuelta.HomeTeamId.Value, vuelta.AwayTeamId.Value,
+                    vuelta.HomeScore, vuelta.AwayScore,
+                    null, null);
+
+                if (aggWinner.HasValue)
+                {
+                    int? loserId = ida.HomeTeamId == aggWinner
+                        ? ida.AwayTeamId : ida.HomeTeamId;
+                    if (loserId.HasValue)
+                    {
+                        var loser = await _context.Teams.FindAsync(loserId.Value);
+                        if (loser != null) loser.PrestigePoints -= 30;
+                    }
+                }
+            }
+        }
+        else
+        {
+            var firstRound = matches.Where(m =>
+                m.Stage == firstRoundStage && m.IsPlayed &&
+                m.HomeTeamId != null && m.AwayTeamId != null).ToList();
+            foreach (var m in firstRound)
+            {
+                int? loserId = m.HomeScore < m.AwayScore
+                    ? m.HomeTeamId : m.AwayTeamId;
+                if (loserId.HasValue)
+                {
+                    var loser = await _context.Teams.FindAsync(loserId.Value);
+                    if (loser != null) loser.PrestigePoints -= 30;
+                }
+            }
+        }
+    }
+
+    /** Si todos los partidos de la liga están jugados, la cierra y reparte prestigio. */
+    private async Task TryCompleteLeagueAsync(int tournamentId, VenueType venueConfig)
+    {
+        var totalMatches = await _context.Matches
+            .CountAsync(m => m.TournamentId == tournamentId);
+        var playedMatches = await _context.Matches
+            .CountAsync(m => m.TournamentId == tournamentId && m.IsPlayed);
+        if (totalMatches == 0 || playedMatches < totalMatches) return;
+
+        var tournament = await _context.Tournaments.FindAsync(tournamentId);
+        if (tournament == null || tournament.Status == TournamentStatus.Finished) return;
+
+        var teamIds = await _context.TeamTournaments
+            .Where(tt => tt.TournamentId == tournamentId)
+            .Select(tt => tt.TeamId)
+            .ToListAsync();
+
+        int teamCount = teamIds.Count;
+        if (teamCount < 2)
+        {
+            tournament.Status = TournamentStatus.Finished;
+            await _context.SaveChangesAsync();
+            return;
+        }
+
+        tournament.Status = TournamentStatus.Finished;
+
+        // Compute standings: same logic as GET /api/matches/standings
+        var matches = await _context.Matches
+            .Where(m => m.TournamentId == tournamentId && m.IsPlayed)
+            .ToListAsync();
+
+        var dict = new Dictionary<int, StandingAccum>();
+        foreach (var tid in teamIds)
+            dict[tid] = new StandingAccum();
+
+        foreach (var m in matches)
+        {
+            if (m.HomeTeamId == null || m.AwayTeamId == null) continue;
+
+            void Accum(int tid, int gf, int ga, int pf, int pa, bool won, bool drew)
+            {
+                var r = dict[tid];
+                r.Played++; r.GoalsFor += gf; r.GoalsAgainst += ga;
+                r.PointsFor += pf; r.PointsAgainst += pa;
+                if (won) r.Wins++; else if (drew) r.Draws++; else r.Losses++;
+            }
+
+            Accum(m.HomeTeamId.Value, m.HomeScore, m.AwayScore, m.HomePoints, m.AwayPoints,
+                m.HomeScore > m.AwayScore, m.HomeScore == m.AwayScore);
+            Accum(m.AwayTeamId.Value, m.AwayScore, m.HomeScore, m.AwayPoints, m.HomePoints,
+                m.AwayScore > m.HomeScore, m.AwayScore == m.HomeScore);
+        }
+
+        var sorted = dict
+            .Select(kv =>
+            {
+                int pts = kv.Value.Wins * 3 + kv.Value.Draws;
+                return (TeamId: kv.Key, Pts: pts, Gd: kv.Value.GoalsFor - kv.Value.GoalsAgainst,
+                    Pd: kv.Value.PointsFor - kv.Value.PointsAgainst, Pf: kv.Value.PointsFor, Gf: kv.Value.GoalsFor);
+            })
+            .OrderByDescending(x => x.Pts)
+            .ThenByDescending(x => x.Gd)
+            .ThenByDescending(x => x.Pd)
+            .ThenByDescending(x => x.Pf)
+            .ThenByDescending(x => x.Gf)
+            .Select(x => x.TeamId)
+            .ToList();
+
+        bool isDouble = venueConfig == VenueType.HomeAndAway;
+        bool small = teamCount < 6;
+
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            var team = await _context.Teams.FindAsync(sorted[i]);
+            if (team == null) continue;
+
+            if (small)
+            {
+                if (i == 0) team.PrestigePoints += 100;
+                else if (i == sorted.Count - 1) team.PrestigePoints -= 100;
+                continue;
+            }
+
+            int top = i;                     // 0-indexed rank
+            int bottom = sorted.Count - 1 - i; // distance from bottom
+
+            if (isDouble)
+            {
+                if (top == 0) team.PrestigePoints += 300;
+                else if (top == 1) team.PrestigePoints += 150;
+                else if (top == 2) team.PrestigePoints += 75;
+                else if (bottom < 3)
+                {
+                    if (bottom == 0) team.PrestigePoints -= 300;
+                    else if (bottom == 1) team.PrestigePoints -= 150;
+                    else if (bottom == 2) team.PrestigePoints -= 75;
+                }
+            }
+            else
+            {
+                if (top == 0) team.PrestigePoints += 200;
+                else if (top == 1) team.PrestigePoints += 100;
+                else if (top == 2) team.PrestigePoints += 50;
+                else if (bottom < 3)
+                {
+                    if (bottom == 0) team.PrestigePoints -= 200;
+                    else if (bottom == 1) team.PrestigePoints -= 100;
+                    else if (bottom == 2) team.PrestigePoints -= 50;
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    private sealed class StandingAccum
+    {
+        public int Played, Wins, Losses, Draws;
+        public int GoalsFor, GoalsAgainst;
+        public int PointsFor, PointsAgainst;
     }
 
     private static string BaseStage(string stage) =>

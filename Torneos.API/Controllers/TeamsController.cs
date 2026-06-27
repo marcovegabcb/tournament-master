@@ -33,6 +33,7 @@ public class TeamsController : ControllerBase
                 t.GroupLabel,
                 t.PrestigePoints,
                 t.SportId,
+                PlayerCount = t.Players?.Count ?? 0,
                 Sport = t.Sport != null ? new { t.Sport.Id, t.Sport.Name, t.Sport.ColorHex } : null,
                 t.StadiumId,
                 Stadium = t.Stadium != null ? new { t.Stadium.Id, t.Stadium.Name, t.Stadium.City } : null,

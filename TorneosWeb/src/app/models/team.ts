@@ -13,6 +13,7 @@ export interface Team {
   groupLabel?: string;
   prestigePoints: number;
   sportId: number;
+  playerCount?: number;
   sport?: Sport;
   stadiumId?: number;
   stadium?: Stadium;

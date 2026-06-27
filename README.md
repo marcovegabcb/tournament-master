@@ -180,6 +180,7 @@ As admin, go to **Matches** → select a tournament → click **Generate Fixture
 | **Tournament Formats** | League and Knockout (single or two-legged) — Groups + Playoffs coming soon |
 | **Auto Fixtures** | One-click schedule generation, two-legged ties and automatic byes |
 | **Sport-Aware Deciders** | Penalty shootout, overtime and golden set for tied knockout ties |
+| **Match Simulation** | One-click auto-generation of realistic results with per-player stats for all sports |
 | **Match Reporting** | Per-player stats, set-by-set scoring and auto-calculated results |
 | **Standings & Brackets** | Live tables with per-sport tie-breakers and interactive knockout trees |
 | **Team & Player Management** | Rosters, captains, jersey numbers, stats |
@@ -229,6 +230,7 @@ tournament-master/
 │   ├── src/app/
 │   │   ├── components/          # Feature components (bracket, login, players, etc.)
 │   │   ├── models/              # TypeScript interfaces
+│   │   ├── simulation/          # Per-sport match simulators (football, basketball, tennis, volleyball)
 │   │   ├── sports/              # Per-sport config (stats, sets, golden set, etc.)
 │   │   └── services/            # HTTP service layer
 │   ├── public/                  # Static assets
@@ -255,7 +257,7 @@ dotnet test Torneos.Tests
 ## 🚀 Roadmap
 
 - [ ] Groups + Playoffs format (group stage → knockout)
-- [ ] Match simulation (auto-generate results)
+- [x] Match simulation (auto-generate results)
 - [ ] Live match score updates via SignalR
 - [ ] Player transfer market
 - [ ] Multi-language support (i18n)

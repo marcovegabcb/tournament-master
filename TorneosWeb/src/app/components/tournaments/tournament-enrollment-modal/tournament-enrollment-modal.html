@@ -44,7 +44,10 @@
                     <span class="text-3xl block mb-2">🛡️</span>
                     <p class="text-gray-400 text-sm">{{ searchTerm ? 'No teams match your search.' : 'No available teams to enroll.' }}</p>
                 </div>
-                <div *ngFor="let team of filteredTeams"
+
+                <!-- Eligible teams -->
+                <div *ngIf="validTeams.length > 0" class="text-xs font-semibold text-emerald-400 uppercase tracking-wider px-1">✅ Eligible</div>
+                <div *ngFor="let team of validTeams"
                      (click)="selectTeam(team)"
                      class="flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-all"
                      [class.border-indigo-500/60]="selectedTeamId === team.id"
@@ -60,8 +63,34 @@
                         <p class="text-xs mt-0.5" [class.text-emerald-400]="team.stadiumId" [class.text-red-400]="!team.stadiumId">
                             {{ team.stadiumId ? '🏟️ ' + (team.stadium?.name || 'Has stadium') : '⛔ No stadium' }}
                         </p>
+                        <p class="text-xs mt-0.5 text-gray-400">
+                            <ng-container *ngIf="activeSportId === 3; else showPlayerCount">
+                                🎾 {{ team.playerCount === 1 ? 'Singles' : team.playerCount === 2 ? 'Doubles' : team.playerCount + ' players' }}
+                            </ng-container>
+                            <ng-template #showPlayerCount>
+                                👥 {{ team.playerCount ?? 0 }} {{ (team.playerCount ?? 0) === 1 ? 'player' : 'players' }}
+                            </ng-template>
+                        </p>
                     </div>
                     <div *ngIf="selectedTeamId === team.id" class="text-indigo-400 text-lg">✓</div>
+                </div>
+
+                <!-- Ineligible teams -->
+                <div *ngIf="invalidTeams.length > 0" class="border-t border-gray-700 pt-3 mt-3">
+                    <div class="text-xs font-semibold text-red-400 uppercase tracking-wider px-1 mb-2">⛔ Not eligible</div>
+                    <div *ngFor="let team of invalidTeams"
+                         class="flex items-center gap-3 p-3 rounded-xl border border-gray-700 opacity-60 cursor-not-allowed">
+                        <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-400 flex-shrink-0">
+                            {{ team.name.charAt(0) }}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold text-gray-400 truncate">{{ team.name }}</p>
+                            <p class="text-xs text-gray-500">⭐ {{ team.prestigePoints }} prestige · {{ team.captainName }}</p>
+                            <p class="text-xs text-red-400 mt-0.5" *ngFor="let r of teamMeetsRequirements(team).reasons">
+                                ⚠️ {{ r }}
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="flex gap-3 mt-6">
