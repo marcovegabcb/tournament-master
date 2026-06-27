@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
@@ -19,9 +19,10 @@ import { PlayerCreateModalComponent } from './player-create-modal/player-create-
   standalone: true,
   imports: [CommonModule, SuccessModalComponent, ErrorModalComponent, BreadcrumbComponent, PlayerListViewComponent, PlayerDetailViewComponent, PlayerCreateModalComponent],
   templateUrl: './players.html',
-  styleUrl: './players.css'
+  styleUrl: './players.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PlayersComponent implements OnInit {
+export class PlayersComponent implements OnInit, OnChanges {
   @Input() activeSportId: number | undefined = 0;
   @Output() navigateHome = new EventEmitter<void>();
   allPlayers: Player[] = [];
@@ -29,9 +30,13 @@ export class PlayersComponent implements OnInit {
   tournaments: Tournament[] = [];
   loading: boolean = true;
 
+  currentPage = 1;
+  pageSize = 20;
+  totalPages = 0;
+  totalCount = 0;
+
   viewMode: 'list' | 'detail' = 'list';
   selectedPlayer: Player | null = null;
-  playerDetails: any = null;
 
   isModalOpen: boolean = false;
   showSuccessModal: boolean = false;
@@ -48,34 +53,52 @@ export class PlayersComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.loadPlayers();
     this.loadTeams();
     this.loadTournaments();
   }
 
-  loadPlayers() {
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['activeSportId'] && changes['activeSportId'].currentValue != null) {
+      this.loadPlayers(1);
+    }
+  }
+
+  loadPlayers(page = 1) {
     this.loading = true;
-    this.playerService.getAll().subscribe({
+    this.playerService.getAll(undefined, page, this.pageSize, this.activeSportId || undefined).subscribe({
       next: (data) => {
-        this.allPlayers = data;
+        this.allPlayers = data.items;
+        this.currentPage = data.page;
+        this.totalPages = data.totalPages;
+        this.totalCount = data.totalCount;
         this.loading = false;
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('Error loading players:', err);
+        this.errorMessage = err.error?.error || 'Could not load players. Please try again.';
+        this.showErrorModal = true;
         this.loading = false;
         this.cdr.detectChanges();
       }
     });
   }
 
+  goToPage(page: number) {
+    if (page < 1 || page > this.totalPages) return;
+    this.loadPlayers(page);
+  }
+
   loadTeams() {
     this.teamService.getAll().subscribe({
       next: (data) => {
-        this.teamsList = data;
+        this.teamsList = data.items;
         this.cdr.detectChanges();
       },
-      error: (err) => console.error('Error loading teams:', err)
+      error: (err) => {
+        this.errorMessage = err.error?.error || 'Could not load teams.';
+        this.showErrorModal = true;
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -85,7 +108,11 @@ export class PlayersComponent implements OnInit {
         this.tournaments = data;
         this.cdr.detectChanges();
       },
-      error: (err) => console.error('Error loading tournaments:', err)
+      error: (err) => {
+        this.errorMessage = err.error?.error || 'Could not load tournaments.';
+        this.showErrorModal = true;
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -93,7 +120,7 @@ export class PlayersComponent implements OnInit {
     this.isModalOpen = true;
   }
 
-  onPlayerCreated(created: any) {
+  onPlayerCreated(created: Player) {
     this.allPlayers.push(created);
     this.isModalOpen = false;
     this.successMessage = `Player "${created.firstName} ${created.lastName}" successfully registered!`;
@@ -107,20 +134,8 @@ export class PlayersComponent implements OnInit {
 
   showDetails(player: Player) {
     this.selectedPlayer = player;
-    this.playerDetails = null;
     this.viewMode = 'detail';
     this.cdr.detectChanges();
-
-    this.playerService.getDetails(player.id).subscribe({
-      next: (data) => {
-        this.playerDetails = data;
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        console.error('Error loading player details:', err);
-        this.cdr.detectChanges();
-      }
-    });
   }
 
   onDeletePlayer(player: Player) {
@@ -147,23 +162,24 @@ export class PlayersComponent implements OnInit {
   backToList() {
     this.viewMode = 'list';
     this.selectedPlayer = null;
-    this.playerDetails = null;
     this.cdr.detectChanges();
   }
 
   closeSuccessModal() {
     this.showSuccessModal = false;
     this.successMessage = '';
+    this.cdr.markForCheck();
   }
 
   closeErrorModal() {
     this.showErrorModal = false;
     this.errorMessage = '';
+    this.cdr.markForCheck();
   }
 
   get breadcrumbSegments(): string[] {
-    if (this.viewMode === 'detail' && this.playerDetails) {
-      return ['Home', 'Players', `${this.playerDetails.firstName} ${this.playerDetails.lastName}`];
+    if (this.viewMode === 'detail' && this.selectedPlayer) {
+      return ['Home', 'Players', `${this.selectedPlayer.firstName} ${this.selectedPlayer.lastName}`];
     }
     return ['Home', 'Players'];
   }

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
@@ -8,7 +8,8 @@ import { Stadium } from '../../../models/stadium';
   selector: 'app-stadium-list-view',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './stadium-list-view.html'
+  templateUrl: './stadium-list-view.html',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StadiumListViewComponent {
   @Input() set stadiums(value: Stadium[]) {
@@ -23,9 +24,14 @@ export class StadiumListViewComponent {
   private _activeSportId: number | undefined = 0;
   @Input() loading: boolean = false;
 
+  @Input() currentPage = 1;
+  @Input() totalPages = 0;
+  @Input() totalCount = 0;
+
   @Output() createStadium = new EventEmitter<void>();
   @Output() showDetails = new EventEmitter<Stadium>();
   @Output() deleteStadium = new EventEmitter<Stadium>();
+  @Output() pageChange = new EventEmitter<number>();
 
   _allStadiums: Stadium[] = [];
   filteredStadiums: Stadium[] = [];
@@ -122,4 +128,7 @@ export class StadiumListViewComponent {
   onShowDetails(stadium: Stadium) {
     this.showDetails.emit(stadium);
   }
+
+  trackByStadiumId(index: number, s: Stadium): number { return s.id; }
+  trackByIndex(index: number): number { return index; }
 }

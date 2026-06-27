@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Tournament } from '../../../models/tournament';
 
 @Component({
   selector: 'app-stadium-tournament-detail',
@@ -8,7 +9,7 @@ import { CommonModule } from '@angular/common';
   templateUrl: './stadium-tournament-detail.html'
 })
 export class StadiumTournamentDetailComponent {
-  @Input() tournament: any = null;
+  @Input() tournament: Tournament | null = null;
 
   @Output() back = new EventEmitter<void>();
 

@@ -1,23 +1,26 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatchService } from '../../../services/match.service';
 import { AuthService } from '../../../services/auth.service';
+import { Tournament } from '../../../models/tournament';
+import { Match } from '../../../models/match';
 
 @Component({
   selector: 'app-tournament-schedule-view',
   standalone: true,
   imports: [CommonModule],
-  templateUrl: './tournament-schedule-view.html'
+  templateUrl: './tournament-schedule-view.html',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TournamentScheduleViewComponent {
-  @Input() tournament: any = null;
+  @Input() tournament: Tournament | null = null;
 
   @Output() back = new EventEmitter<void>();
   @Output() fixtureGenerated = new EventEmitter<void>();
 
-  matches: any[] = [];
+  matches: Match[] = [];
   matchRounds: string[] = [];
-  matchesByRound: { [key: string]: any[] } = {};
+  matchesByRound: { [key: string]: Match[] } = {};
   loading: boolean = false;
   loadError: string = '';
   generating: boolean = false;
@@ -29,8 +32,8 @@ export class TournamentScheduleViewComponent {
     '📅 Assigning dates and venues...',
     '✅ Finalizing schedule...'
   ];
-  private generationTimer: any = null;
-  private loadTimeout: any = null;
+  private generationTimer: ReturnType<typeof setInterval> | null = null;
+  private loadTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private matchService: MatchService,
@@ -64,18 +67,19 @@ export class TournamentScheduleViewComponent {
       next: (data) => {
         this.clearTimeout();
         this.matches = data;
+        this.propagateByes();
         const order = ['Ronda preliminar', 'Octavos de final', 'Cuartos de final', 'Semifinal', 'Semifinales', 'Final', 'Tercer lugar'];
         const normalize = (s: string) => s.replace(/ - (Ida|Vuelta)$/, '').trim();
         const rank = (s: string) => { const i = order.indexOf(normalize(s)); return i >= 0 ? i : 999; };
         const leg = (s: string) => s.endsWith('Ida') ? 0 : s.endsWith('Vuelta') ? 1 : 0;
-        const rounds = [...new Set(data.map((m: any) => m.stage))].sort((a, b) => {
+        const rounds = [...new Set(this.matches.map(m => m.stage))].sort((a, b) => {
           const d = rank(a) - rank(b);
           return d !== 0 ? d : leg(a) - leg(b);
         });
         this.matchRounds = rounds;
-        const grouped: { [key: string]: any[] } = {};
+        const grouped: { [key: string]: Match[] } = {};
         for (const r of rounds) {
-          grouped[r] = data.filter((m: any) => m.stage === r);
+          grouped[r] = this.matches.filter(m => m.stage === r);
         }
         this.matchesByRound = grouped;
         this.loading = false;
@@ -143,6 +147,32 @@ export class TournamentScheduleViewComponent {
     this.clearInterval();
   }
 
+  private propagateByes(): void {
+    const nextMap: Record<string, string> = {
+      'Ronda preliminar': 'Octavos de final',
+      'Octavos de final': 'Cuartos de final',
+      'Cuartos de final': 'Semifinales',
+      'Semifinal': 'Final',
+      'Semifinales': 'Final',
+    };
+    for (const curStage of Object.keys(nextMap)) {
+      const cur = this.matches.filter(m => m.stage === curStage).sort((a, b) => a.id - b.id);
+      const nxt = this.matches.filter(m => m.stage === nextMap[curStage]).sort((a, b) => a.id - b.id);
+      if (!cur.length || !nxt.length) continue;
+      for (let i = 0; i < cur.length; i++) {
+        const cm = cur[i];
+        if (!cm.homeTeam || cm.awayTeam) continue;
+        cm._bye = true;
+        const nextIdx = Math.floor(i / 2);
+        if (nextIdx >= nxt.length) continue;
+        const nm = nxt[nextIdx];
+        if (i % 2 === 0) { if (!nm.homeTeam) nm.homeTeam = cm.homeTeam; }
+        else { if (!nm.awayTeam) nm.awayTeam = cm.homeTeam; }
+      }
+    }
+    this.matches = this.matches.filter(m => !m._bye);
+  }
+
   translateStage(s: string): string {
     const map: Record<string, string> = {
       'Ronda preliminar': 'Preliminary Round',
@@ -162,4 +192,8 @@ export class TournamentScheduleViewComponent {
     this.clearTimers();
     this.back.emit();
   }
+
+  trackByIndex(index: number): number { return index; }
+  trackByStage(index: number, s: string): string { return s; }
+  trackByMatchId(index: number, m: Match): number { return m.id || index; }
 }

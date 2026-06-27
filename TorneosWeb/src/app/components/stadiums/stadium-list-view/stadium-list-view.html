@@ -61,7 +61,7 @@
 </div>
 
 <div *ngIf="!loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <div *ngFor="let stadium of searchedStadiums" class="group bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-xl hover:border-indigo-500 transition-all">
+    <div *ngFor="let stadium of searchedStadiums; trackBy: trackByStadiumId" class="group bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-xl hover:border-indigo-500 transition-all">
         <div class="flex items-start gap-3 mb-4">
             <div class="bg-indigo-900/40 text-indigo-400 w-10 h-10 rounded-lg flex items-center justify-center text-lg">🏟️</div>
             <div class="flex-1 min-w-0">
@@ -91,5 +91,20 @@
 </div>
 
 <div *ngIf="!loading && searchedStadiums.length === 0" class="text-center py-12 bg-gray-800/10 rounded-xl border border-dashed border-gray-800 mt-6">
-    <p class="text-gray-500">{{ searchQuery ? 'No stadiums match "' + searchQuery + '"' : 'No stadiums found for this sport. Click "+ Create Stadium" to add the first one!' }}</p>
+    <p class="text-gray-500">{{ searchQuery ? 'No stadiums match "' + searchQuery + '"' : 'No stadiums found for this sport.' }}</p>
+    <p *ngIf="!searchQuery && totalCount === 0" class="text-gray-500 text-sm mt-1">Click "+ Create Stadium" to add the first one!</p>
+</div>
+
+<div *ngIf="!loading && totalPages > 1" class="flex items-center justify-between mt-6 px-1">
+    <p class="text-xs text-gray-500">{{ totalCount }} stadiums · Page {{ currentPage }} of {{ totalPages }}</p>
+    <div class="flex gap-2">
+        <button (click)="pageChange.emit(currentPage - 1)" [disabled]="currentPage === 1"
+                class="px-3 py-1.5 text-xs rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            ← Prev
+        </button>
+        <button (click)="pageChange.emit(currentPage + 1)" [disabled]="currentPage === totalPages"
+                class="px-3 py-1.5 text-xs rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            Next →
+        </button>
+    </div>
 </div>

@@ -17,11 +17,14 @@ public class TournamentModel
     public async Task<List<Tournament>> GetAllAsync()
     {
         return await _context.Tournaments
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(t => t.Sport)
             .Include(t => t.TournamentStadiums)
                 .ThenInclude(ts => ts.Stadium)
             .Include(t => t.TeamTournaments)
                 .ThenInclude(tt => tt.Team)
+            .OrderBy(t => t.Id)
             .ToListAsync();
     }
 
@@ -29,6 +32,7 @@ public class TournamentModel
     public async Task<Tournament?> GetByIdWithTeamsAsync(int id)
     {
         return await _context.Tournaments
+            .AsNoTracking()
             .Include(t => t.TeamTournaments)
                 .ThenInclude(tt => tt.Team)
             .FirstOrDefaultAsync(t => t.Id == id);
@@ -41,18 +45,30 @@ public class TournamentModel
      */
     public async Task<Tournament> CreateAsync(CreateTournamentRequest request)
     {
+        var sport = await _context.Sports.FindAsync(request.SportId)
+            ?? throw new InvalidOperationException("The selected sport does not exist.");
+
+        // Tenis se juega siempre en sede neutral: forzamos la configuración aunque llegue otra cosa.
+        var venueConfig = Torneos.API.Services.SportRules.IsNeutralVenueOnly(sport.Name)
+            ? VenueType.NeutralVenue
+            : request.VenueConfig;
+
+        // Vóley sí admite doble partido (se decide por partidos ganados + golden set). Tenis nunca
+        // llega aquí a doble partido porque IsNeutralVenueOnly lo fuerza a sede neutral más arriba.
+
         var tournament = new Tournament
         {
             Name = request.Name,
             MinPrestigeRequired = request.MinPrestigeRequired,
             MinPlayersPerTeam = request.MinPlayersPerTeam,
+            MaxPlayersPerTeam = request.MaxPlayersPerTeam,
             Format = request.Format,
-            VenueConfig = request.VenueConfig,
+            VenueConfig = venueConfig,
             SportId = request.SportId,
             Status = TournamentStatus.RegistrationOpen
         };
 
-        if (request.VenueConfig == VenueType.NeutralVenue && request.StadiumIds.Count > 0)
+        if (venueConfig == VenueType.NeutralVenue && request.StadiumIds.Count > 0)
         {
             foreach (var stadiumId in request.StadiumIds)
             {

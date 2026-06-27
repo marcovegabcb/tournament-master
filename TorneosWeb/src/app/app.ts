@@ -1,5 +1,6 @@
-import { Component, OnInit, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { TournamentsComponent } from './components/tournaments/tournaments';
 import { TeamsComponent } from './components/teams/teams';
 import { PlayersComponent } from './components/players/players';
@@ -23,9 +24,10 @@ import { Stadium } from './models/stadium';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, TournamentsComponent, TeamsComponent, PlayersComponent, StadiumsComponent, GeneratorComponent, EnrollmentRequestsComponent, FooterComponent, LoginComponent],
+  imports: [CommonModule, FormsModule, TournamentsComponent, TeamsComponent, PlayersComponent, StadiumsComponent, GeneratorComponent, EnrollmentRequestsComponent, FooterComponent, LoginComponent],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class App implements OnInit {
   currentTab: string = 'home';
@@ -37,6 +39,11 @@ export class App implements OnInit {
   filteredTournaments: Tournament[] = [];
   selectedSport: Sport | null = null;
   showLoginModal: boolean = false;
+  showAddSportModal: boolean = false;
+  newSportName: string = '';
+  newSportColor: string = '#3B82F6';
+  addSportLoading: boolean = false;
+  addSportError: string = '';
 
   sportIcons: Record<string, string> = {
     'Football': '⚽',
@@ -49,10 +56,14 @@ export class App implements OnInit {
     return this.sportIcons[name] || '🎮';
   }
 
+  totalTeamsCount = 0;
+  totalPlayersCount = 0;
+  totalStadiumsCount = 0;
+
   get totalTournaments(): number { return this.allTournaments.length; }
-  get totalTeams(): number { return this.allTeams.length; }
-  get totalPlayers(): number { return this.allPlayers.length; }
-  get totalStadiums(): number { return this.allStadiums.length; }
+  get totalTeams(): number { return this.totalTeamsCount; }
+  get totalPlayers(): number { return this.totalPlayersCount; }
+  get totalStadiums(): number { return this.totalStadiumsCount; }
 
   get adminEmail(): string | null { return this.authService.getEmail(); }
 
@@ -145,9 +156,10 @@ export class App implements OnInit {
   }
 
   loadTeams() {
-    this.teamService.getAll().subscribe({
+    this.teamService.getAll(undefined, 1, 1000).subscribe({
       next: (data) => {
-        this.allTeams = data;
+        this.allTeams = data.items;
+        this.totalTeamsCount = data.totalCount;
         this.cdr.detectChanges();
       },
       error: (err) => console.error('Error loading teams:', err)
@@ -155,9 +167,10 @@ export class App implements OnInit {
   }
 
   loadPlayers() {
-    this.playerService.getAll().subscribe({
+    this.playerService.getAll(undefined, 1, 1000).subscribe({
       next: (data) => {
-        this.allPlayers = data;
+        this.allPlayers = data.items;
+        this.totalPlayersCount = data.totalCount;
         this.cdr.detectChanges();
       },
       error: (err) => console.error('Error loading players:', err)
@@ -165,9 +178,10 @@ export class App implements OnInit {
   }
 
   loadStadiums() {
-    this.stadiumService.getAll().subscribe({
+    this.stadiumService.getAll(undefined, 1, 1000).subscribe({
       next: (data) => {
-        this.allStadiums = data;
+        this.allStadiums = data.items;
+        this.totalStadiumsCount = data.totalCount;
         this.cdr.detectChanges();
       },
       error: (err) => console.error('Error loading stadiums:', err)
@@ -187,6 +201,42 @@ export class App implements OnInit {
     );
   }
 
+  openAddSport() {
+    this.newSportName = '';
+    this.newSportColor = '#3B82F6';
+    this.addSportError = '';
+    this.addSportLoading = false;
+    this.showAddSportModal = true;
+  }
+
+  closeAddSport() {
+    this.showAddSportModal = false;
+  }
+
+  addSport() {
+    const name = this.newSportName.trim();
+    if (!name) {
+      this.addSportError = 'Please enter a sport name.';
+      return;
+    }
+
+    this.addSportLoading = true;
+    this.addSportError = '';
+
+    this.sportService.create({ name, colorHex: this.newSportColor }).subscribe({
+      next: () => {
+        this.addSportLoading = false;
+        this.showAddSportModal = false;
+        this.loadSports();
+      },
+      error: () => {
+        this.addSportLoading = false;
+        this.addSportError = 'Failed to create sport.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
   openLogin() {
     this.showLoginModal = true;
   }
@@ -197,6 +247,14 @@ export class App implements OnInit {
 
   onLoggedIn() {
     this.showLoginModal = false;
+  }
+
+  trackBySportId(index: number, sport: Sport): number {
+    return sport.id;
+  }
+
+  trackByTournamentId(index: number, t: Tournament): number {
+    return t.id;
   }
 
   logout() {

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
@@ -10,7 +10,8 @@ import { Tournament } from '../../../models/tournament';
   selector: 'app-player-list-view',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './player-list-view.html'
+  templateUrl: './player-list-view.html',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PlayerListViewComponent {
   @Input() set players(value: Player[]) {
@@ -21,10 +22,15 @@ export class PlayerListViewComponent {
   @Input() teamsList: Team[] = [];
   @Input() tournaments: Tournament[] = [];
 
+  @Input() currentPage = 1;
+  @Input() totalPages = 0;
+  @Input() totalCount = 0;
+
   @Output() createPlayer = new EventEmitter<void>();
   @Output() showDetails = new EventEmitter<Player>();
   @Output() deletePlayer = new EventEmitter<Player>();
   @Output() navigateHome = new EventEmitter<void>();
+  @Output() pageChange = new EventEmitter<number>();
 
   _allPlayers: Player[] = [];
 
@@ -161,4 +167,9 @@ export class PlayerListViewComponent {
   onDelete(player: Player) {
     this.deletePlayer.emit(player);
   }
+
+  trackByPlayerId(index: number, p: Player): number { return p.id; }
+  trackByTeamId(index: number, t: Team): number { return t.id; }
+  trackByTournamentId(index: number, t: Tournament): number { return t.id; }
+  trackByIndex(index: number): number { return index; }
 }

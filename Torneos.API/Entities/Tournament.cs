@@ -42,6 +42,9 @@ public class Tournament
     // 🆕 NUEVO: Mínimo de jugadores por equipo para poder inscribirse
     public int MinPlayersPerTeam { get; set; } = 0; // Por defecto 0 (sin requisito)
 
+    // 🆕 NUEVO: Máximo de jugadores por equipo para poder inscribirse
+    public int MaxPlayersPerTeam { get; set; } = 0; // Por defecto 0 (sin límite)
+
     public TournamentStatus Status { get; set; } = TournamentStatus.RegistrationOpen;
     public bool IsFixtureGenerated { get; set; } = false;
 

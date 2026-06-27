@@ -3,6 +3,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PlayerService } from '../../../services/player.service';
 import { Team } from '../../../models/team';
+import { Player } from '../../../models/player';
+
+interface NewPlayerForm {
+  firstName: string;
+  lastName: string;
+  jerseyNumber: number;
+  matchesPlayed: number;
+  teamId: number | undefined;
+}
 
 @Component({
   selector: 'app-player-create-modal',
@@ -14,10 +23,10 @@ export class PlayerCreateModalComponent {
   @Input() teamsList: Team[] = [];
   @Input() activeSportId: number | undefined = 0;
 
-  @Output() created = new EventEmitter<any>();
+  @Output() created = new EventEmitter<Player>();
   @Output() closed = new EventEmitter<void>();
 
-  newPlayer: any = {
+  newPlayer: NewPlayerForm = {
     firstName: '',
     lastName: '',
     jerseyNumber: 0,
@@ -25,8 +34,9 @@ export class PlayerCreateModalComponent {
     teamId: undefined
   };
 
-  saving: boolean = false;
-  errorMessage: string = '';
+  saving = false;
+  submitted = false;
+  errorMessage = '';
 
   constructor(
     private playerService: PlayerService,
@@ -38,9 +48,21 @@ export class PlayerCreateModalComponent {
     return this.teamsList.filter(t => t.sportId === this.activeSportId);
   }
 
+  get firstNameInvalid() { return this.submitted && !this.newPlayer.firstName?.trim(); }
+  get lastNameInvalid()  { return this.submitted && !this.newPlayer.lastName?.trim(); }
+  get jerseyInvalid()    { return this.submitted && (this.newPlayer.jerseyNumber < 1 || this.newPlayer.jerseyNumber > 99); }
+  get teamInvalid()      { return this.submitted && !this.newPlayer.teamId; }
+
   save() {
-    if (!this.newPlayer.firstName?.trim() || !this.newPlayer.lastName?.trim()) {
-      this.errorMessage = 'Please enter first and last name.';
+    this.submitted = true;
+    if (this.firstNameInvalid || this.lastNameInvalid || this.jerseyInvalid || this.teamInvalid) {
+      this.cdr.detectChanges();
+      return;
+    }
+    const team = this.teamsList.find(t => t.id === this.newPlayer.teamId);
+    if (team?.players?.some(p => p.jerseyNumber === this.newPlayer.jerseyNumber)) {
+      this.errorMessage = `Jersey #${this.newPlayer.jerseyNumber} is already taken in '${team.name}'.`;
+      this.cdr.detectChanges();
       return;
     }
     this.errorMessage = '';
@@ -54,13 +76,14 @@ export class PlayerCreateModalComponent {
       },
       error: (err) => {
         this.saving = false;
-        this.errorMessage = 'Could not create the player.';
+        this.errorMessage = err.error?.error || 'Could not create the player.';
         this.cdr.detectChanges();
       }
     });
   }
 
   close() {
+    this.submitted = false;
     this.errorMessage = '';
     this.closed.emit();
   }

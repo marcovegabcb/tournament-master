@@ -35,14 +35,17 @@
                 <th class="text-center py-3 px-3">W</th>
                 <th class="text-center py-3 px-3">D</th>
                 <th class="text-center py-3 px-3">L</th>
-                <th class="text-center py-3 px-3">GF</th>
-                <th class="text-center py-3 px-3">GA</th>
-                <th class="text-center py-3 px-3">GD</th>
+                <th class="text-center py-3 px-3" [title]="scoreForTitle">{{ scoreForLabel }}</th>
+                <th class="text-center py-3 px-3" [title]="scoreAgainstTitle">{{ scoreAgainstLabel }}</th>
+                <th class="text-center py-3 px-3" [title]="scoreDiffTitle">{{ scoreDiffLabel }}</th>
+                <th *ngIf="isSetSport" class="text-center py-3 px-3 text-gray-500" [title]="subForTitle">{{ subForLabel }}</th>
+                <th *ngIf="isSetSport" class="text-center py-3 px-3 text-gray-500" [title]="subAgainstTitle">{{ subAgainstLabel }}</th>
+                <th *ngIf="isSetSport" class="text-center py-3 px-3 text-gray-500" [title]="subDiffTitle">{{ subDiffLabel }}</th>
                 <th class="text-center py-3 pl-3 pr-4 font-bold text-indigo-400">Pts</th>
             </tr>
         </thead>
         <tbody>
-            <tr *ngFor="let row of standings; let i = index"
+            <tr *ngFor="let row of standings; let i = index; trackBy: trackByIndex"
                 class="border-b border-gray-800/50 hover:bg-gray-700/30 transition-colors"
                 [class.bg-indigo-900/10]="i < 3">
                 <td class="py-3 px-4 text-gray-400 font-medium">{{ i + 1 }}</td>
@@ -58,6 +61,14 @@
                     [class.text-red-400]="row.goalDifference < 0"
                     [class.text-gray-400]="row.goalDifference === 0">
                     {{ row.goalDifference > 0 ? '+' : '' }}{{ row.goalDifference }}
+                </td>
+                <td *ngIf="isSetSport" class="text-center py-3 px-3 text-gray-400">{{ row.pointsFor }}</td>
+                <td *ngIf="isSetSport" class="text-center py-3 px-3 text-gray-400">{{ row.pointsAgainst }}</td>
+                <td *ngIf="isSetSport" class="text-center py-3 px-3 font-medium"
+                    [class.text-green-400]="row.pointsDifference > 0"
+                    [class.text-red-400]="row.pointsDifference < 0"
+                    [class.text-gray-400]="row.pointsDifference === 0">
+                    {{ row.pointsDifference > 0 ? '+' : '' }}{{ row.pointsDifference }}
                 </td>
                 <td class="text-center py-3 pl-3 pr-4 font-bold text-white text-base">{{ row.points }}</td>
             </tr>

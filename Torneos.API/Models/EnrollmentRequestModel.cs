@@ -1,21 +1,26 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Torneos.API.DTOs;
 using Torneos.API.Entities;
+using Torneos.API.Services;
 
 namespace Torneos.API.Models;
 
 public class EnrollmentRequestModel
 {
     private readonly ApplicationDbContext _context;
+    private readonly PendingRequestTracker _tracker;
 
-    public EnrollmentRequestModel(ApplicationDbContext context)
+    public EnrollmentRequestModel(ApplicationDbContext context, PendingRequestTracker tracker)
     {
         _context = context;
+        _tracker = tracker;
     }
 
     public async Task<List<EnrollmentRequest>> GetAllAsync()
     {
         return await _context.EnrollmentRequests
+            .AsNoTracking()
             .Include(er => er.Team)
             .Include(er => er.Tournament)
             .OrderByDescending(er => er.CreatedAt)
@@ -48,17 +53,32 @@ public class EnrollmentRequestModel
         if (alreadyEnrolled)
             throw new InvalidOperationException($"Team '{team.Name}' is already enrolled in '{tournament.Name}'.");
 
-        var request = new EnrollmentRequest
+        bool alreadyPending = await _context.EnrollmentRequests
+            .AnyAsync(er => er.TeamId == teamId && er.TournamentId == tournamentId && er.Status == "Pending");
+        if (alreadyPending)
+            throw new InvalidOperationException($"There is already a pending request for team '{team.Name}' in '{tournament.Name}'.");
+
+        if (!_tracker.TryTrack(teamId, tournamentId, null))
+            throw new InvalidOperationException($"A request for team '{team.Name}' in '{tournament.Name}' is already being processed.");
+
+        try
         {
-            TeamId = teamId,
-            TournamentId = tournamentId,
-            RequesterEmail = requesterEmail,
-            Status = "Pending",
-            CreatedAt = DateTime.UtcNow
-        };
-        _context.EnrollmentRequests.Add(request);
-        await _context.SaveChangesAsync();
-        return request;
+            var request = new EnrollmentRequest
+            {
+                TeamId = teamId,
+                TournamentId = tournamentId,
+                RequesterEmail = requesterEmail,
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.EnrollmentRequests.Add(request);
+            await _context.SaveChangesAsync();
+            return request;
+        }
+        finally
+        {
+            _tracker.Remove(teamId, tournamentId, null);
+        }
     }
 
     public async Task<EnrollmentRequest> CreateWithNewTeamAsync(
@@ -80,22 +100,35 @@ public class EnrollmentRequestModel
         if (tournament.MinPlayersPerTeam > 0 && players.Count < tournament.MinPlayersPerTeam)
             throw new InvalidOperationException($"You need at least {tournament.MinPlayersPerTeam} players for '{tournament.Name}', but only {players.Count} provided.");
 
-        var request = new EnrollmentRequest
+        if (tournament.MaxPlayersPerTeam > 0 && players.Count > tournament.MaxPlayersPerTeam)
+            throw new InvalidOperationException($"You can have at most {tournament.MaxPlayersPerTeam} players for '{tournament.Name}', but {players.Count} provided.");
+
+        if (!_tracker.TryTrack(null, tournamentId, newTeamName))
+            throw new InvalidOperationException($"A request for team '{newTeamName}' in '{tournament.Name}' is already being processed.");
+
+        try
         {
-            TeamId = null,
-            TournamentId = tournamentId,
-            RequesterEmail = requesterEmail,
-            Status = "Pending",
-            CreatedAt = DateTime.UtcNow,
-            NewTeamName = newTeamName,
-            NewTeamCaptainName = newTeamCaptainName,
-            NewTeamLogoUrl = newTeamLogoUrl,
-            NewTeamStadiumId = newTeamStadiumId,
-            NewTeamPlayersJson = newTeamPlayersJson
-        };
-        _context.EnrollmentRequests.Add(request);
-        await _context.SaveChangesAsync();
-        return request;
+            var request = new EnrollmentRequest
+            {
+                TeamId = null,
+                TournamentId = tournamentId,
+                RequesterEmail = requesterEmail,
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow,
+                NewTeamName = newTeamName,
+                NewTeamCaptainName = newTeamCaptainName,
+                NewTeamLogoUrl = newTeamLogoUrl,
+                NewTeamStadiumId = newTeamStadiumId,
+                NewTeamPlayersJson = newTeamPlayersJson
+            };
+            _context.EnrollmentRequests.Add(request);
+            await _context.SaveChangesAsync();
+            return request;
+        }
+        finally
+        {
+            _tracker.Remove(null, tournamentId, newTeamName);
+        }
     }
 
     public async Task<(bool Success, string Message)> ApproveAsync(int id)

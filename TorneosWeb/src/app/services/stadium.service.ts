@@ -1,18 +1,20 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Stadium } from '../models/stadium';
+import { PagedResult } from '../models/paged-result';
 
-const API = 'http://localhost:5185/api';
+const API = '/api';
 
 @Injectable({ providedIn: 'root' })
 export class StadiumService {
   constructor(private http: HttpClient) {}
 
-  /** GET /api/Stadiums — Obtiene todos los estadios. Si se pasa sportId, filtra por deporte. */
-  getAll(sportId?: number): Observable<Stadium[]> {
-    const params = sportId ? `?sportId=${sportId}` : '';
-    return this.http.get<Stadium[]>(`${API}/Stadiums${params}`);
+  /** GET /api/Stadiums — Obtiene estadios paginados. Si se pasa sportId, filtra por deporte. */
+  getAll(sportId?: number, page = 1, pageSize = 20): Observable<PagedResult<Stadium>> {
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (sportId) params = params.set('sportId', sportId);
+    return this.http.get<PagedResult<Stadium>>(`${API}/Stadiums`, { params });
   }
 
   /** GET /api/Stadiums/{id}/details — Obtiene info detallada de un estadio (equipos locales, torneos asociados). */

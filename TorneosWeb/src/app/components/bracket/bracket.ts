@@ -1,9 +1,12 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { Component, Input, OnChanges, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Match } from '../../models/match';
+import { Tournament } from '../../models/tournament';
+import { Team } from '../../models/team';
 
 interface BracketLeg {
-  homeTeam: any;
-  awayTeam: any;
+  homeTeam: Team | null;
+  awayTeam: Team | null;
   homeScore: number;
   awayScore: number;
   isPlayed: boolean;
@@ -11,11 +14,13 @@ interface BracketLeg {
 }
 
 interface BracketTie {
-  homeTeam: any;
-  awayTeam: any;
+  homeTeam: Team | null;
+  awayTeam: Team | null;
   legs: BracketLeg[];
   stage: string;
   isEmpty: boolean;
+  // Ganador decidido por el backend (incluye desempate por penaltis). Null si aún no resuelto.
+  winnerTeamId?: number | null;
 }
 
 interface BracketRound {
@@ -29,11 +34,12 @@ interface BracketRound {
   standalone: true,
   imports: [CommonModule],
   templateUrl: './bracket.html',
-  styleUrl: './bracket.css'
+  styleUrl: './bracket.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BracketComponent implements OnChanges {
-  @Input() matches: any[] = [];
-  @Input() tournament: any;
+  @Input() matches: Match[] = [];
+  @Input() tournament: Tournament | null = null;
 
   leftBracket: BracketRound[] = [];
   rightBracket: BracketRound[] = [];
@@ -68,7 +74,7 @@ export class BracketComponent implements OnChanges {
 
     const normalize = (s: string) => s.replace(/ - (Ida|Vuelta)$/, '').trim();
 
-    const map = new Map<string, any[]>();
+    const map = new Map<string, Match[]>();
     for (const m of this.matches) {
       const key = normalize(m.stage);
       const arr = map.get(key) || [];
@@ -288,7 +294,7 @@ export class BracketComponent implements OnChanges {
     };
   }
 
-  private createByeTie(team: any, stageName: string): BracketTie {
+  private createByeTie(team: Team | null, stageName: string): BracketTie {
     return {
       homeTeam: team,
       awayTeam: null,
@@ -335,25 +341,26 @@ export class BracketComponent implements OnChanges {
     }
   }
 
-  private buildTies(matches: any[]): BracketTie[] {
+  private buildTies(matches: Match[]): BracketTie[] {
     const ida = matches.filter(m => m.stage.endsWith('Ida'));
     const vuelta = matches.filter(m => m.stage.endsWith('Vuelta'));
     const singles = matches.filter(m => !m.stage.endsWith('Ida') && !m.stage.endsWith('Vuelta'));
 
     if (ida.length === 0 && vuelta.length === 0) {
       return singles.map(m => ({
-        homeTeam: m.homeTeam,
-        awayTeam: m.awayTeam,
+        homeTeam: m.homeTeam ?? null,
+        awayTeam: m.awayTeam ?? null,
         legs: [{
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
+          homeTeam: m.homeTeam ?? null,
+          awayTeam: m.awayTeam ?? null,
           homeScore: m.homeScore,
           awayScore: m.awayScore,
           isPlayed: m.isPlayed,
           label: ''
         }],
         stage: m.stage,
-        isEmpty: false
+        isEmpty: false,
+        winnerTeamId: m.winnerTeamId ?? null
       }));
     }
 
@@ -371,20 +378,20 @@ export class BracketComponent implements OnChanges {
       if (vueltaMatch) used.add(vueltaMatch.id);
 
       ties.push({
-        homeTeam: idaMatch.homeTeam,
-        awayTeam: idaMatch.awayTeam,
+        homeTeam: idaMatch.homeTeam ?? null,
+        awayTeam: idaMatch.awayTeam ?? null,
         legs: [
           {
-            homeTeam: idaMatch.homeTeam,
-            awayTeam: idaMatch.awayTeam,
+            homeTeam: idaMatch.homeTeam ?? null,
+            awayTeam: idaMatch.awayTeam ?? null,
             homeScore: idaMatch.homeScore,
             awayScore: idaMatch.awayScore,
             isPlayed: idaMatch.isPlayed,
             label: '1st Leg'
           },
           ...(vueltaMatch ? [{
-            homeTeam: vueltaMatch.homeTeam,
-            awayTeam: vueltaMatch.awayTeam,
+            homeTeam: vueltaMatch.homeTeam ?? null,
+            awayTeam: vueltaMatch.awayTeam ?? null,
             homeScore: vueltaMatch.homeScore,
             awayScore: vueltaMatch.awayScore,
             isPlayed: vueltaMatch.isPlayed,
@@ -392,25 +399,27 @@ export class BracketComponent implements OnChanges {
           }] : [])
         ],
         stage: idaMatch.stage.replace(/ - Ida$/, ''),
-        isEmpty: false
+        isEmpty: false,
+        winnerTeamId: vueltaMatch?.winnerTeamId ?? idaMatch.winnerTeamId ?? null
       });
     }
 
     for (const m of singles) {
       if (!used.has(m.id)) {
         ties.push({
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
+          homeTeam: m.homeTeam ?? null,
+          awayTeam: m.awayTeam ?? null,
           legs: [{
-            homeTeam: m.homeTeam,
-            awayTeam: m.awayTeam,
+            homeTeam: m.homeTeam ?? null,
+            awayTeam: m.awayTeam ?? null,
             homeScore: m.homeScore,
             awayScore: m.awayScore,
             isPlayed: m.isPlayed,
             label: ''
           }],
           stage: m.stage,
-          isEmpty: false
+          isEmpty: false,
+          winnerTeamId: m.winnerTeamId ?? null
         });
       }
     }
@@ -424,14 +433,25 @@ export class BracketComponent implements OnChanges {
     return `${start} / ${start + span}`;
   }
 
+  trackByStage(index: number, r: BracketRound): string { return r.stage; }
+  trackByTie(index: number, t: BracketTie): string { return `${t.stage}-${t.homeTeam?.id || ''}-${t.awayTeam?.id || ''}`; }
+  trackByIndex(index: number): number { return index; }
+  trackByLeg(index: number, l: BracketLeg): string { return l.label || String(index); }
+
   centerGridRow(t: number): string {
     const start = Math.max(Math.floor((this.gridRows - 1) / 2), 1) + (t * 2);
     return `${start} / ${start + 2}`;
   }
 
   aggregateScore(tie: BracketTie, isHome: boolean): number {
+    // El global se suma por equipo (por id), no por posición: en la vuelta local y
+    // visitante están invertidos respecto a la ida.
+    const teamId = isHome ? tie.homeTeam?.id : tie.awayTeam?.id;
+    if (teamId == null) return 0;
     return tie.legs.reduce((sum, leg) => {
-      return sum + (isHome ? leg.homeScore : leg.awayScore);
+      if (leg.homeTeam?.id === teamId) return sum + leg.homeScore;
+      if (leg.awayTeam?.id === teamId) return sum + leg.awayScore;
+      return sum;
     }, 0);
   }
 
@@ -441,13 +461,18 @@ export class BracketComponent implements OnChanges {
 
   tieWinner(tie: BracketTie, isHome: boolean): boolean {
     if (!this.tiePlayed(tie)) return false;
+
+    // Preferir el ganador decidido por el backend (resuelve empates por penaltis).
+    if (tie.winnerTeamId != null) {
+      const teamId = isHome ? tie.homeTeam?.id : tie.awayTeam?.id;
+      return teamId != null && teamId === tie.winnerTeamId;
+    }
+
+    // Fallback por marcador global. Si está empatado, no hay ganador todavía
+    // (pendiente de desempate); no se resaltan goles de visitante.
     const homeTotal = this.aggregateScore(tie, true);
     const awayTotal = this.aggregateScore(tie, false);
-    if (homeTotal === awayTotal) {
-      if (tie.legs.length < 2) return false;
-      const awayGoals = tie.legs[1]?.homeScore || 0;
-      return isHome ? awayGoals > (tie.legs[0]?.awayScore || 0) : (tie.legs[0]?.awayScore || 0) > awayGoals;
-    }
+    if (homeTotal === awayTotal) return false;
     return isHome ? homeTotal > awayTotal : awayTotal > homeTotal;
   }
 }

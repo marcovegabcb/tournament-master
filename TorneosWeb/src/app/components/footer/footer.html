@@ -2,30 +2,30 @@
     <div class="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
     <div class="absolute top-0 right-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
-    <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12">
-        <div class="flex flex-col md:flex-row flex-wrap justify-between gap-12 text-center">
+    <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-6">
+        <div class="flex flex-col md:flex-row flex-wrap justify-between gap-6 text-center">
 
-            <div class="flex-1 min-w-[280px] max-w-md mx-auto">
-                <div class="flex items-center justify-center gap-2 mb-4">
+            <div class="max-w-sm mx-auto md:mx-0">
+                <div class="flex items-center justify-center gap-2 mb-3">
                     <span class="text-xl">🏆</span>
                     <h3 class="text-base font-black text-white uppercase tracking-wider bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
                         TournamentMaster
                     </h3>
                 </div>
-                <p class="text-xs text-gray-400 leading-relaxed">
-                    Tournament management platform. Create and manage tournaments, teams, players and stadiums across multiple sports.
+                <p class="text-xs text-gray-400 leading-relaxed" style="text-wrap: balance;">
+                    Plan, run and track tournaments for every sport — teams, players, fixtures and standings, all in one place.
                 </p>
             </div>
 
-            <div class="min-w-[160px]">
+            <nav class="min-w-[160px]" aria-label="Footer quick links">
                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Quick Links</h3>
                 <div class="grid grid-cols-2 gap-x-8 gap-y-2.5 max-w-[200px] mx-auto">
-                    <a (click)="goTo('tournaments')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Tournaments</a>
-                    <a (click)="goTo('teams')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Teams</a>
-                    <a (click)="goTo('players')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Players</a>
-                    <a (click)="goTo('stadiums')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Stadiums</a>
+                    <button type="button" (click)="goTo('tournaments')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 focus-visible:text-indigo-400 focus:outline-none transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Tournaments</button>
+                    <button type="button" (click)="goTo('teams')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 focus-visible:text-indigo-400 focus:outline-none transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Teams</button>
+                    <button type="button" (click)="goTo('players')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 focus-visible:text-indigo-400 focus:outline-none transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Players</button>
+                    <button type="button" (click)="goTo('stadiums')" class="text-xs font-medium text-gray-400 hover:text-indigo-400 focus-visible:text-indigo-400 focus:outline-none transition-colors text-center hover:translate-x-0.5 transform inline-block duration-200 cursor-pointer">Stadiums</button>
                 </div>
-            </div>
+            </nav>
 
             <div class="min-w-[160px]">
                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Connect</h3>
@@ -43,14 +43,15 @@
         </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pb-8">
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 rounded-2xl bg-gradient-to-r from-gray-800/60 via-gray-800/40 to-gray-800/60 border border-gray-700/40 shadow-lg">
+    <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pb-5">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-gray-800/60 via-gray-800/40 to-gray-800/60 border border-gray-700/40 shadow-lg">
             <div class="flex items-center gap-3 text-sm tracking-wide">
                 <span class="hover:scale-125 transition-transform cursor-default inline-block">⚽</span>
                 <span class="hover:scale-125 transition-transform cursor-default inline-block">🏀</span>
                 <span class="hover:scale-125 transition-transform cursor-default inline-block">🎾</span>
                 <span class="hover:scale-125 transition-transform cursor-default inline-block">🏐</span>
             </div>
+            <p class="text-xs font-medium text-gray-500 tracking-wide">Built with Angular &amp; .NET</p>
             <p class="text-xs font-medium text-gray-500 tracking-wide">&copy; {{ currentYear }} TournamentMaster. All rights reserved.</p>
         </div>
     </div>

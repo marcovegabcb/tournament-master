@@ -260,9 +260,11 @@ namespace Torneos.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TeamId");
-
                     b.HasIndex("TournamentId");
+
+                    b.HasIndex("TeamId", "TournamentId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'Pending'");
 
                     b.ToTable("EnrollmentRequests");
                 });
@@ -275,16 +277,28 @@ namespace Torneos.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("AwayPoints")
+                        .HasColumnType("integer");
+
                     b.Property<int>("AwayScore")
                         .HasColumnType("integer");
 
                     b.Property<int?>("AwayTeamId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("AwayTiebreak")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("HomePoints")
+                        .HasColumnType("integer");
+
                     b.Property<int>("HomeScore")
                         .HasColumnType("integer");
 
                     b.Property<int?>("HomeTeamId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("HomeTiebreak")
                         .HasColumnType("integer");
 
                     b.Property<bool>("IsPlayed")
@@ -301,6 +315,9 @@ namespace Torneos.API.Migrations
                         .HasColumnType("text");
 
                     b.Property<int>("TournamentId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("WinnerTeamId")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
@@ -338,12 +355,13 @@ namespace Torneos.API.Migrations
                     b.Property<int>("MatchesPlayed")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("TeamId")
+                    b.Property<int>("TeamId")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TeamId");
+                    b.HasIndex("TeamId", "JerseyNumber")
+                        .IsUnique();
 
                     b.ToTable("Players");
                 });
@@ -485,6 +503,9 @@ namespace Torneos.API.Migrations
                     b.Property<bool>("IsFixtureGenerated")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("MaxPlayersPerTeam")
+                        .HasColumnType("integer");
+
                     b.Property<int>("MinPlayersPerTeam")
                         .HasColumnType("integer");
 
@@ -534,6 +555,9 @@ namespace Torneos.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Assists")
+                        .HasColumnType("integer");
+
                     b.Property<int>("MatchId")
                         .HasColumnType("integer");
 
@@ -544,9 +568,6 @@ namespace Torneos.API.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("Rebounds")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TriplesMade")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
@@ -578,9 +599,8 @@ namespace Torneos.API.Migrations
                     b.Property<int>("PlayerId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Position")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("RedCards")
+                        .HasColumnType("integer");
 
                     b.Property<int>("YellowCards")
                         .HasColumnType("integer");
@@ -605,22 +625,13 @@ namespace Torneos.API.Migrations
                     b.Property<int>("Aces")
                         .HasColumnType("integer");
 
-                    b.Property<int>("BreakPointsConverted")
-                        .HasColumnType("integer");
-
                     b.Property<int>("DoubleFaults")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("FirstServePercentage")
                         .HasColumnType("integer");
 
                     b.Property<int>("MatchId")
                         .HasColumnType("integer");
 
                     b.Property<int>("PlayerId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("UnforcedErrors")
                         .HasColumnType("integer");
 
                     b.Property<int>("Winners")
@@ -646,13 +657,7 @@ namespace Torneos.API.Migrations
                     b.Property<int>("Aces")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Assists")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Blocks")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Digs")
                         .HasColumnType("integer");
 
                     b.Property<int>("Kills")
@@ -662,9 +667,6 @@ namespace Torneos.API.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("PlayerId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ServiceErrors")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
@@ -782,7 +784,8 @@ namespace Torneos.API.Migrations
                     b.HasOne("Torneos.API.Entities.Team", "Team")
                         .WithMany("Players")
                         .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Team");
                 });

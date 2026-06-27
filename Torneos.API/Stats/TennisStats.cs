@@ -14,8 +14,5 @@ public class TennisStats
 
     public int Aces { get; set; }
     public int DoubleFaults { get; set; }
-    public int FirstServePercentage { get; set; }
     public int Winners { get; set; }
-    public int UnforcedErrors { get; set; }
-    public int BreakPointsConverted { get; set; }
 }

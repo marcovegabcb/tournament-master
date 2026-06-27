@@ -21,8 +21,7 @@
         (showStandings)="onShowStandings($event)"
         (deleteTournament)="onDeleteTournament($event)"
         (closeRegistration)="onCloseRegistration($event)"
-        (openRegister)="onOpenRegister($event)"
-        (openRequest)="onOpenRequest($event)"
+        (openEnrollment)="onOpenEnrollment($event)"
         (viewTeams)="onViewTeams($event)"
         (goToGenerator)="goToGenerator.emit($event)"
         (navigateHome)="onNavigateHome()"
@@ -58,36 +57,28 @@
     (closed)="showCreateModal = false">
 </app-tournament-create-modal>
 
-<app-tournament-register-modal
-    *ngIf="showRegisterModal"
+<app-tournament-enrollment-modal
+    *ngIf="showEnrollmentModal"
     [tournament]="selectedTournament"
     [teamsList]="teamsList"
     [activeSportId]="activeSportId"
-    (registered)="onTeamRegistered($event)"
-    (closed)="showRegisterModal = false">
-</app-tournament-register-modal>
-
-<app-tournament-request-modal
-    *ngIf="showRequestModal"
-    [tournament]="selectedTournament"
-    [teamsList]="teamsList"
-    [activeSportId]="activeSportId"
-    (requested)="onRequestSent()"
-    (closed)="showRequestModal = false">
-</app-tournament-request-modal>
+    [stadiumsList]="stadiumsList"
+    (completed)="onEnrollmentCompleted($event)"
+    (closed)="showEnrollmentModal = false">
+</app-tournament-enrollment-modal>
 
 <!-- View Teams modal -->
-<div *ngIf="showTeamsModal && teamsModalData" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all">
-    <div class="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
-        <button (click)="closeTeamsModal()" class="absolute top-5 right-5 text-gray-400 hover:text-white transition">✕</button>
+<div *ngIf="showTeamsModal && teamsModalData" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all" (click)="closeTeamsModal()">
+    <div class="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative" (click)="$event.stopPropagation()">
+        <button type="button" (click)="closeTeamsModal()" class="absolute top-5 right-5 text-gray-400 hover:text-white transition">✕</button>
         <h3 class="text-xl font-bold text-white mb-1">👥 Enrolled Teams</h3>
         <p class="text-xs text-gray-400 mb-6">Teams participating in <strong class="text-indigo-400">{{ teamsModalData.name }}</strong></p>
         <div *ngIf="!teamsModalData.teamTournaments?.length" class="text-center py-8">
             <span class="text-3xl block mb-2">🛡️</span>
             <p class="text-gray-400 text-sm">No teams enrolled yet.</p>
         </div>
-        <div *ngIf="teamsModalData.teamTournaments?.length > 0" class="space-y-2 max-h-60 overflow-y-auto pr-1">
-            <div *ngFor="let tt of teamsModalData.teamTournaments"
+        <div *ngIf="(teamsModalData.teamTournaments?.length ?? 0) > 0" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <div *ngFor="let tt of teamsModalData.teamTournaments; let i = index; trackBy: trackByIndex"
                  class="flex items-center gap-3 p-3 rounded-lg bg-gray-700/30 border border-gray-700/50">
                 <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white shrink-0">
                     {{ tt.team?.name?.charAt(0) || '?' }}
@@ -97,12 +88,12 @@
                     <p class="text-xs text-gray-400">⭐ {{ tt.team?.prestigePoints || '—' }} prestige</p>
                 </div>
                 <button *ngIf="authService.isAdmin$ | async"
-                        (click)="removeTeamFromTournament(tt.teamId || tt.team?.id)"
+                        (click)="removeTeamFromTournament(tt.teamId || tt.team?.id || 0)"
                         class="text-red-400 hover:text-red-300 text-lg font-bold p-1 transition">&times;</button>
             </div>
         </div>
         <div class="mt-6">
-            <button (click)="closeTeamsModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 px-4 rounded-lg text-sm transition">Close</button>
+            <button type="button" (click)="closeTeamsModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 px-4 rounded-lg text-sm transition">Close</button>
         </div>
     </div>
 </div>
@@ -110,6 +101,7 @@
 <!-- Success / Error modals -->
 <app-success-modal
     *ngIf="showSuccessModal"
+    [show]="true"
     [message]="successMessage"
     [secondaryLabel]="successSecondaryLabel"
     (close)="closeSuccessModal()"
@@ -118,6 +110,7 @@
 
 <app-error-modal
     *ngIf="showErrorModal"
+    [show]="true"
     [message]="errorMessage"
     (close)="closeErrorModal()">
 </app-error-modal>

@@ -1,18 +1,20 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Team } from '../models/team';
+import { PagedResult } from '../models/paged-result';
 
-const API = 'http://localhost:5185/api';
+const API = '/api';
 
 @Injectable({ providedIn: 'root' })
 export class TeamService {
   constructor(private http: HttpClient) {}
 
-  /** GET /api/Teams — Obtiene todos los equipos. Si se pasa sportId, filtra por deporte. */
-  getAll(sportId?: number): Observable<Team[]> {
-    const params = sportId ? `?sportId=${sportId}` : '';
-    return this.http.get<Team[]>(`${API}/Teams${params}`);
+  /** GET /api/Teams — Obtiene equipos paginados. Si se pasa sportId, filtra por deporte. */
+  getAll(sportId?: number, page = 1, pageSize = 20): Observable<PagedResult<Team>> {
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (sportId) params = params.set('sportId', sportId);
+    return this.http.get<PagedResult<Team>>(`${API}/Teams`, { params });
   }
 
   /** GET /api/Teams/{id}/details — Obtiene info detallada de un equipo (plantilla, partidos, torneos). */

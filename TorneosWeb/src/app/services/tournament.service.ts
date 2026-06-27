@@ -2,8 +2,20 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Tournament } from '../models/tournament';
+import { EnrolledTeam } from '../models/enrolled-team';
 
-const API = 'http://localhost:5185/api';
+export interface CreateTournamentDto {
+  name: string;
+  format: number;
+  venueConfig: number;
+  minPrestigeRequired: number;
+  minPlayersPerTeam: number;
+  maxPlayersPerTeam: number;
+  sportId: number;
+  stadiumIds?: number[];
+}
+
+const API = '/api';
 
 @Injectable({ providedIn: 'root' })
 export class TournamentService {
@@ -15,12 +27,12 @@ export class TournamentService {
   }
 
   /** GET /api/Tournaments/{id}/teams — Obtiene los equipos inscritos en un torneo concreto. */
-  getTeams(id: number): Observable<any[]> {
-    return this.http.get<any[]>(`${API}/Tournaments/${id}/teams`);
+  getTeams(id: number): Observable<EnrolledTeam[]> {
+    return this.http.get<EnrolledTeam[]>(`${API}/Tournaments/${id}/teams`);
   }
 
   /** POST /api/Tournaments — Crea un torneo. El body incluye nombre, formato, configuración de sede, etc. */
-  create(data: any): Observable<Tournament> {
+  create(data: CreateTournamentDto): Observable<Tournament> {
     return this.http.post<Tournament>(`${API}/Tournaments`, data);
   }
 

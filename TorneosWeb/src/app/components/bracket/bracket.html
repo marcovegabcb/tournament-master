@@ -2,10 +2,10 @@
   <div class="bracket-flex">
 
     <div class="bracket-side left-side">
-      <div *ngFor="let round of leftBracket" class="bracket-round">
+      <div *ngFor="let round of leftBracket; trackBy: trackByStage" class="bracket-round">
         <div class="round-label">{{ round.stage }}</div>
         <div class="round-grid" [style.gridTemplateRows]="'repeat(' + gridRows + ', 1fr)'">
-          <div *ngFor="let tie of round.ties; let t = index"
+          <div *ngFor="let tie of round.ties; let t = index; trackBy: trackByTie"
                class="match-card"
                [class.empty-card]="tie.isEmpty"
                [style.gridRow]="gridRow(round.roundIndex, t)">
@@ -18,10 +18,10 @@
     </div>
 
     <div class="bracket-center">
-      <div *ngFor="let round of centerBracket" class="bracket-round center-round">
+      <div *ngFor="let round of centerBracket; trackBy: trackByStage" class="bracket-round center-round">
         <div class="round-label highlight">{{ round.stage }}</div>
         <div class="round-grid" [style.gridTemplateRows]="'repeat(' + gridRows + ', 1fr)'">
-          <div *ngFor="let tie of round.ties; let t = index"
+          <div *ngFor="let tie of round.ties; let t = index; trackBy: trackByTie"
                class="match-card final-card"
                [class.empty-card]="tie.isEmpty"
                [style.gridRow]="centerGridRow(t)">
@@ -34,10 +34,10 @@
     </div>
 
     <div class="bracket-side right-side">
-      <div *ngFor="let round of rightBracketReversed" class="bracket-round">
+      <div *ngFor="let round of rightBracketReversed; trackBy: trackByStage" class="bracket-round">
         <div class="round-label">{{ round.stage }}</div>
         <div class="round-grid" [style.gridTemplateRows]="'repeat(' + gridRows + ', 1fr)'">
-          <div *ngFor="let tie of round.ties; let t = index"
+          <div *ngFor="let tie of round.ties; let t = index; trackBy: trackByTie"
                class="match-card"
                [class.empty-card]="tie.isEmpty"
                [style.gridRow]="gridRow(round.roundIndex, t)">
@@ -79,7 +79,7 @@
     </ng-container>
     <ng-template #multiLeg>
       <div class="legs-container">
-        <div class="leg-row" *ngFor="let leg of tie.legs">
+          <div class="leg-row" *ngFor="let leg of tie.legs; trackBy: trackByLeg">
           <span class="leg-label">{{ leg.label }}</span>
           <div class="leg-teams">
             <div class="team-row">

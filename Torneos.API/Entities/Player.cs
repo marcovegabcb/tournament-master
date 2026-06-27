@@ -10,6 +10,6 @@ public class Player
     // Estadísticas generales (universales)
     public int MatchesPlayed { get; set; } // Partidos jugados
 
-    public int? TeamId { get; set; }
-    public Team? Team { get; set; }
+    public int TeamId { get; set; }
+    public Team Team { get; set; } = null!;
 }

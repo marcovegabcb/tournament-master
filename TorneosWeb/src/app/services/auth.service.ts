@@ -2,14 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 
-const API = 'http://localhost:5185/api/auth';
+const API = '/api/auth';
 const TOKEN_KEY = 'auth_token';
 const EMAIL_KEY = 'auth_email';
 const ROLE_KEY = 'auth_role';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private isAdminSubject = new BehaviorSubject<boolean>(this.hasToken());
+  private isAdminSubject = new BehaviorSubject<boolean>(localStorage.getItem(ROLE_KEY) === 'Admin');
   isAdmin$ = this.isAdminSubject.asObservable();
 
   constructor(private http: HttpClient) {}
@@ -20,7 +20,7 @@ export class AuthService {
         localStorage.setItem(TOKEN_KEY, res.token);
         localStorage.setItem(EMAIL_KEY, res.email);
         localStorage.setItem(ROLE_KEY, res.role);
-        this.isAdminSubject.next(true);
+        this.isAdminSubject.next(res.role === 'Admin');
       })
     );
   }

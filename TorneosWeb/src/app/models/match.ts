@@ -15,4 +15,9 @@ export interface Match {
   tournamentId: number;
   tournament?: Tournament;
   stadiumId?: number;
+  // Desempate de eliminatoria (penaltis). Solo presentes si el cruce decisivo acabó empatado.
+  homeTiebreak?: number | null;
+  awayTiebreak?: number | null;
+  winnerTeamId?: number | null;
+  _bye?: boolean;
 }

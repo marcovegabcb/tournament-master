@@ -85,7 +85,11 @@ public class ApplicationDbContext : IdentityDbContext
             .HasOne(p => p.Team)
             .WithMany(t => t.Players)
             .HasForeignKey(p => p.TeamId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Player>()
+            .HasIndex(p => new { p.TeamId, p.JerseyNumber })
+            .IsUnique();
 
         modelBuilder.Entity<Team>()
             .HasOne(t => t.Captain)
@@ -98,6 +102,11 @@ public class ApplicationDbContext : IdentityDbContext
             .WithMany()
             .HasForeignKey(er => er.TeamId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<EnrollmentRequest>()
+            .HasIndex(er => new { er.TeamId, er.TournamentId })
+            .HasFilter("\"Status\" = 'Pending'")
+            .IsUnique();
 
         modelBuilder.Entity<EnrollmentRequest>()
             .HasOne(er => er.Tournament)

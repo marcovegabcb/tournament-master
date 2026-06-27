@@ -15,7 +15,4 @@ public class VolleyballStats
     public int Kills { get; set; }
     public int Blocks { get; set; }
     public int Aces { get; set; }
-    public int Digs { get; set; }
-    public int Assists { get; set; }
-    public int ServiceErrors { get; set; }
 }

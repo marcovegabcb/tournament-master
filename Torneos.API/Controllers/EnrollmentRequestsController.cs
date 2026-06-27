@@ -20,8 +20,7 @@ public class EnrollmentRequestsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAll()
     {
-        var requests = await _enrollmentRequestModel.GetAllAsync();
-        return Ok(requests);
+        return Ok(await _enrollmentRequestModel.GetAllAsync());
     }
 
     [HttpPost]
@@ -31,42 +30,26 @@ public class EnrollmentRequestsController : ControllerBase
 
         if (dto.TeamId.HasValue && dto.TeamId.Value > 0)
         {
-            // Existing team request
-            try
-            {
-                var request = await _enrollmentRequestModel.CreateWithExistingTeamAsync(dto.TeamId.Value, dto.TournamentId, email);
-                return Ok(new { message = "Enrollment request submitted." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            await _enrollmentRequestModel.CreateWithExistingTeamAsync(dto.TeamId.Value, dto.TournamentId, email);
+            return Ok(new { message = "Enrollment request submitted." });
         }
         else
         {
-            // New team request
             if (string.IsNullOrWhiteSpace(dto.NewTeamName))
                 return BadRequest(new { message = "Team name is required for new team requests." });
 
             var playersJson = System.Text.Json.JsonSerializer.Serialize(dto.NewTeamPlayers ?? new List<NewTeamPlayerDto>());
 
-            try
-            {
-                var request = await _enrollmentRequestModel.CreateWithNewTeamAsync(
-                    dto.TournamentId,
-                    email,
-                    dto.NewTeamName,
-                    dto.NewTeamCaptainName ?? "",
-                    dto.NewTeamLogoUrl ?? "",
-                    dto.NewTeamStadiumId,
-                    playersJson
-                );
-                return Ok(new { message = "Enrollment request submitted." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            await _enrollmentRequestModel.CreateWithNewTeamAsync(
+                dto.TournamentId,
+                email,
+                dto.NewTeamName,
+                dto.NewTeamCaptainName ?? "",
+                dto.NewTeamLogoUrl ?? "",
+                dto.NewTeamStadiumId,
+                playersJson
+            );
+            return Ok(new { message = "Enrollment request submitted." });
         }
     }
 

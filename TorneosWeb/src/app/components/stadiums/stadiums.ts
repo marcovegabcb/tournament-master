@@ -1,10 +1,13 @@
-import { Component, Input, Output, EventEmitter, OnChanges, OnInit, SimpleChanges, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, OnInit, SimpleChanges, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { StadiumService } from '../../services/stadium.service';
 import { TeamService } from '../../services/team.service';
 import { TournamentService } from '../../services/tournament.service';
 import { AuthService } from '../../services/auth.service';
 import { Stadium } from '../../models/stadium';
+import { StadiumDetail } from '../../models/stadium-detail';
+import { TeamDetail } from '../../models/team-detail';
+import { Tournament } from '../../models/tournament';
 import { SuccessModalComponent } from '../shared/success-modal/success-modal';
 import { ErrorModalComponent } from '../shared/error-modal/error-modal';
 import { BreadcrumbComponent } from '../shared/breadcrumb/breadcrumb';
@@ -19,7 +22,8 @@ import { StadiumCreateModalComponent } from './stadium-create-modal/stadium-crea
   standalone: true,
   imports: [CommonModule, SuccessModalComponent, ErrorModalComponent, BreadcrumbComponent, StadiumListViewComponent, StadiumDetailViewComponent, StadiumTeamDetailComponent, StadiumTournamentDetailComponent, StadiumCreateModalComponent],
   templateUrl: './stadiums.html',
-  styleUrl: './stadiums.css'
+  styleUrl: './stadiums.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StadiumsComponent implements OnInit, OnChanges {
   allStadiums: Stadium[] = [];
@@ -27,11 +31,16 @@ export class StadiumsComponent implements OnInit, OnChanges {
   @Output() navigateHome = new EventEmitter<void>();
   loading: boolean = true;
 
+  currentPage = 1;
+  pageSize = 20;
+  totalPages = 0;
+  totalCount = 0;
+
   viewMode: 'list' | 'detail' | 'teamDetail' | 'tournamentDetail' = 'list';
-  stadiumDetails: any = null;
+  stadiumDetails: StadiumDetail | null = null;
   selectedStadium: Stadium | null = null;
-  teamDetails: any = null;
-  tournamentDetails: any = null;
+  teamDetails: TeamDetail | null = null;
+  tournamentDetails: Tournament | null = null;
 
   isModalOpen: boolean = false;
   showSuccessModal: boolean = false;
@@ -47,37 +56,44 @@ export class StadiumsComponent implements OnInit, OnChanges {
     public authService: AuthService
   ) {}
 
-  ngOnInit() {
-    this.loadStadiums();
-  }
+  ngOnInit() {}
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['activeSportId'] && !changes['activeSportId'].firstChange) {
-      this.cdr.detectChanges();
+    if (changes['activeSportId'] && changes['activeSportId'].currentValue != null) {
+      this.loadStadiums(1);
     }
   }
 
-  loadStadiums() {
+  loadStadiums(page = 1) {
     this.loading = true;
-    this.stadiumService.getAll().subscribe({
+    this.stadiumService.getAll(this.activeSportId || undefined, page, this.pageSize).subscribe({
       next: (data) => {
-        this.allStadiums = data;
+        this.allStadiums = data.items;
+        this.currentPage = data.page;
+        this.totalPages = data.totalPages;
+        this.totalCount = data.totalCount;
         this.loading = false;
         this.cdr.detectChanges();
       },
       error: (err) => {
+        this.errorMessage = err.error?.error || 'Could not load stadiums. Please try again.';
+        this.showErrorModal = true;
         this.loading = false;
         this.cdr.detectChanges();
-        console.error('Error loading stadiums:', err);
       }
     });
+  }
+
+  goToPage(page: number) {
+    if (page < 1 || page > this.totalPages) return;
+    this.loadStadiums(page);
   }
 
   openModal() {
     this.isModalOpen = true;
   }
 
-  onStadiumCreated(created: any) {
+  onStadiumCreated(created: Stadium) {
     this.allStadiums.push(created);
     this.isModalOpen = false;
     this.successMessage = `Stadium "${created.name}" successfully created!`;
@@ -128,7 +144,7 @@ export class StadiumsComponent implements OnInit, OnChanges {
     });
   }
 
-  onTeamClick(team: any) {
+  onTeamClick(team: StadiumDetail['teams'][number]) {
     this.teamDetails = null;
     this.viewMode = 'teamDetail';
     this.cdr.detectChanges();
@@ -138,13 +154,18 @@ export class StadiumsComponent implements OnInit, OnChanges {
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('Error loading team details:', err);
+        this.errorMessage = err.error?.error || err.error?.message || err.message || `HTTP ${err.status}: Could not load team details.`;
+        if (err.error && typeof err.error === 'object') {
+          const extra = JSON.stringify(err.error);
+          if (extra !== '{}') this.errorMessage += ` (${extra})`;
+        }
+        this.showErrorModal = true;
         this.cdr.detectChanges();
       }
     });
   }
 
-  onTournamentClick(t: any) {
+  onTournamentClick(t: StadiumDetail['tournaments'][number]) {
     this.tournamentDetails = null;
     this.viewMode = 'tournamentDetail';
     this.cdr.detectChanges();
@@ -155,7 +176,8 @@ export class StadiumsComponent implements OnInit, OnChanges {
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('Error loading tournament details:', err);
+        this.errorMessage = err.error?.error || 'Could not load tournament details.';
+        this.showErrorModal = true;
         this.cdr.detectChanges();
       }
     });
@@ -197,10 +219,12 @@ export class StadiumsComponent implements OnInit, OnChanges {
   closeSuccessModal() {
     this.showSuccessModal = false;
     this.successMessage = '';
+    this.cdr.markForCheck();
   }
 
   closeErrorModal() {
     this.showErrorModal = false;
     this.errorMessage = '';
+    this.cdr.markForCheck();
   }
 }

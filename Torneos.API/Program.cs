@@ -4,18 +4,32 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Torneos.API;
+using Torneos.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Fail fast with a clear message if required secrets are not configured
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Missing required config: ConnectionStrings:DefaultConnection");
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Missing required config: Jwt:Key");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"]
+    ?? throw new InvalidOperationException("Missing required config: Jwt:Issuer");
+var jwtAudience = builder.Configuration["Jwt:Audience"]
+    ?? throw new InvalidOperationException("Missing required config: Jwt:Audience");
+
+if (jwtKey.Length < 32)
+    throw new InvalidOperationException("Jwt:Key must be at least 32 characters long.");
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 {
-    options.Password.RequireDigit = false;
-    options.Password.RequiredLength = 6;
+    options.Password.RequiredLength = 8;
+    options.Password.RequireDigit = true;
+    options.Password.RequireUppercase = true;
     options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequireUppercase = false;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
@@ -33,9 +47,9 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 });
 
@@ -45,6 +59,10 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    })
+    .AddMvcOptions(options =>
+    {
+        options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
     });
 
 builder.Services.AddOpenApi();
@@ -58,6 +76,8 @@ builder.Services.AddScoped<Torneos.API.Models.MatchModel>();
 builder.Services.AddScoped<Torneos.API.Models.EnrollmentModel>();
 builder.Services.AddScoped<Torneos.API.Models.EnrollmentRequestModel>();
 
+builder.Services.AddTransient<GlobalExceptionHandler>();
+builder.Services.AddSingleton<Torneos.API.Services.PendingRequestTracker>();
 builder.Services.AddScoped<Torneos.API.Services.FixtureService>();
 builder.Services.AddScoped<Torneos.API.Services.FixtureGenerators.LeagueFixtureGenerator>();
 builder.Services.AddScoped<Torneos.API.Services.FixtureGenerators.KnockoutFixtureGenerator>();
@@ -87,6 +107,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseMiddleware<GlobalExceptionHandler>();
 app.UseCors("AllowAngular");
 app.UseAuthentication();
 app.UseAuthorization();
@@ -98,7 +119,16 @@ using (var scope = app.Services.CreateScope())
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
     var adminEmail = builder.Configuration["Admin:Email"] ?? "admin@torneos.com";
-    var adminPassword = builder.Configuration["Admin:Password"] ?? "Admin123!";
+    var adminPassword = builder.Configuration["Admin:Password"];
+
+    // En desarrollo se permite una contraseña provisional; fuera de él es obligatorio configurarla.
+    if (string.IsNullOrEmpty(adminPassword))
+    {
+        if (app.Environment.IsDevelopment())
+            adminPassword = "Admin123!";
+        else
+            throw new InvalidOperationException("Missing required config: Admin:Password");
+    }
 
     if (!await roleManager.RoleExistsAsync("Admin"))
         await roleManager.CreateAsync(new IdentityRole("Admin"));
@@ -109,7 +139,7 @@ using (var scope = app.Services.CreateScope())
         adminUser = new IdentityUser { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
         await userManager.CreateAsync(adminUser, adminPassword);
         await userManager.AddToRoleAsync(adminUser, "Admin");
-        Console.WriteLine($"Default admin created: {adminEmail} / {adminPassword}");
+        Console.WriteLine($"Default admin created: {adminEmail}");
     }
 }
 

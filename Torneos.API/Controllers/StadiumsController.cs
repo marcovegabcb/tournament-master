@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Torneos.API.DTOs;
 using Torneos.API.Entities;
 using Torneos.API.Models;
 
@@ -17,24 +18,29 @@ public class StadiumsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<object>>> GetStadiums([FromQuery] int? sportId = null)
+    public async Task<ActionResult> GetStadiums([FromQuery] int? sportId = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var stadiums = await _stadiumModel.GetAllAsync(sportId);
+        var paged = await _stadiumModel.GetAllAsync(sportId, page, pageSize);
 
-        var result = stadiums.Select(s => new
+        return Ok(new
         {
-            id = s.Id,
-            name = s.Name,
-            city = s.City,
-            capacity = s.Capacity,
-            length = s.Length,
-            width = s.Width,
-            sportId = s.SportId,
-            sport = s.Sport != null ? new { id = s.Sport.Id, name = s.Sport.Name, colorHex = s.Sport.ColorHex } : null,
-            teams = s.Teams.Select(t => new { id = t.Id, name = t.Name }).ToList()
+            items = paged.Items.Select(s => new
+            {
+                id = s.Id,
+                name = s.Name,
+                city = s.City,
+                capacity = s.Capacity,
+                length = s.Length,
+                width = s.Width,
+                sportId = s.SportId,
+                sport = s.Sport != null ? new { id = s.Sport.Id, name = s.Sport.Name, colorHex = s.Sport.ColorHex } : null,
+                teams = s.Teams.Select(t => new { id = t.Id, name = t.Name }).ToList()
+            }),
+            paged.TotalCount,
+            paged.Page,
+            paged.PageSize,
+            paged.TotalPages
         });
-
-        return Ok(result);
     }
 
     [HttpGet("{id}/details")]
@@ -71,8 +77,17 @@ public class StadiumsController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<Stadium>> CreateStadium(Stadium stadium)
+    public async Task<ActionResult<Stadium>> CreateStadium(CreateStadiumRequest request)
     {
+        var stadium = new Stadium
+        {
+            Name = request.Name,
+            City = request.City,
+            Capacity = request.Capacity,
+            Length = request.Length,
+            Width = request.Width,
+            SportId = request.SportId
+        };
         var created = await _stadiumModel.CreateAsync(stadium);
         return CreatedAtAction(nameof(GetStadiums), new { id = created.Id }, created);
     }

@@ -28,6 +28,7 @@ export interface Tournament {
   venueConfig: VenueType;
   minPrestigeRequired: number;
   minPlayersPerTeam: number;
+  maxPlayersPerTeam: number;
   status: TournamentStatus;
   isFixtureGenerated: boolean;
   sportId: number;

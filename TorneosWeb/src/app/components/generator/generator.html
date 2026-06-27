@@ -23,7 +23,7 @@
     </div>
 
     <div *ngIf="!loading && tournaments.length > 0" class="space-y-2">
-        <div *ngFor="let tournament of tournaments"
+        <div *ngFor="let tournament of tournaments; trackBy: trackByTournamentId"
              class="bg-gray-800/80 rounded-xl border border-gray-700 shadow-lg overflow-hidden transition-all hover:border-amber-500/40">
 
             <button (click)="toggleExpand(tournament.id)"
@@ -55,7 +55,7 @@
             <div *ngIf="generating === tournament.id" class="px-5 pb-4">
                 <div class="p-3 bg-gray-900/60 rounded-lg border border-amber-500/20">
                     <div class="space-y-2">
-                        <div *ngFor="let step of generationSteps; let i = index"
+                        <div *ngFor="let step of generationSteps; let i = index; trackBy: trackByIndex"
                              class="flex items-center gap-2 transition-all duration-500"
                              [class.opacity-30]="i > generationStep"
                              [class.opacity-100]="i <= generationStep">
@@ -92,22 +92,54 @@
                 <div class="border-t border-gray-700/50 px-5 py-4">
                     <div class="space-y-3">
                         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">📅 Schedule</p>
-                        <div *ngFor="let round of getMatchRounds(getMatches(tournament.id))" class="space-y-1.5">
+                        <div *ngFor="let round of getMatchRounds(getMatches(tournament.id)); trackBy: trackByIndex" class="space-y-1.5">
                             <p class="text-[11px] font-bold uppercase tracking-widest text-indigo-400">{{ getRoundLabel(round) }}</p>
-                            <div *ngFor="let match of getMatchesByRound(getMatches(tournament.id), round); let i = index"
+                            <div *ngFor="let match of getMatchesByRound(getMatches(tournament.id), round); let i = index; trackBy: trackByMatchId"
                                  class="flex items-center gap-1.5 bg-gray-900/40 rounded-lg px-3 py-2 border border-gray-700/30"
                                  [style.animation]="'fadeInUp 0.25s ease-out ' + (i * 0.03) + 's both'">
                                 <span class="text-[10px] text-gray-500 w-12 flex-shrink-0">{{ match.matchDate | date:'dd MMM' }}</span>
-                                <span class="flex-1 text-right text-xs font-medium text-white truncate">{{ match.homeTeam?.name || 'TBD' }}</span>
-                                <span class="text-xs text-gray-500 font-bold px-1">vs</span>
-                                <span class="flex-1 text-xs font-medium text-white truncate">{{ match.awayTeam?.name || 'TBD' }}</span>
-                                <span class="text-[10px] text-gray-500 w-8 flex-shrink-0">{{ match.stage === 'RegularSeason_Ida' ? '1st' : '2nd' }}</span>
-                                <div *ngIf="authService.isAdmin$ | async" class="flex gap-1 flex-shrink-0">
-                                    <button (click)="openSimulate(match)" title="Simulate"
-                                            class="bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white w-6 h-6 rounded flex items-center justify-center text-xs transition-all">🎲</button>
-                                    <button (click)="openReport(match)" title="Fill Report"
-                                            class="bg-cyan-600/20 hover:bg-cyan-600 text-cyan-400 hover:text-white w-6 h-6 rounded flex items-center justify-center text-xs transition-all">📋</button>
+                                <span class="flex-1 text-right text-xs font-medium truncate"
+                                      [class.text-green-400]="match.isPlayed && match.homeScore > match.awayScore"
+                                      [class.text-red-400]="match.isPlayed && match.homeScore < match.awayScore"
+                                      [class.text-white]="!match.isPlayed">{{ match.homeTeam?.name || 'TBD' }}</span>
+
+                                <ng-container *ngIf="!match.isPlayed">
+                                    <span class="text-xs text-gray-500 font-bold px-1">vs</span>
+                                </ng-container>
+                                <ng-container *ngIf="match.isPlayed">
+                                    <span class="text-xs font-bold px-1"
+                                          [class.text-green-400]="match.homeScore > match.awayScore"
+                                          [class.text-red-400]="match.homeScore < match.awayScore"
+                                          [class.text-gray-400]="match.homeScore === match.awayScore">{{ match.homeScore }}</span>
+                                    <span class="text-[10px] text-gray-600 font-bold">:</span>
+                                    <span class="text-xs font-bold px-1"
+                                          [class.text-green-400]="match.awayScore > match.homeScore"
+                                          [class.text-red-400]="match.awayScore < match.homeScore"
+                                          [class.text-gray-400]="match.homeScore === match.awayScore">{{ match.awayScore }}</span>
+                                </ng-container>
+
+                                <span class="flex-1 text-xs font-medium truncate"
+                                      [class.text-green-400]="match.isPlayed && match.awayScore > match.homeScore"
+                                      [class.text-red-400]="match.isPlayed && match.awayScore < match.homeScore"
+                                      [class.text-white]="!match.isPlayed">{{ match.awayTeam?.name || 'TBD' }}</span>
+
+                                <span class="text-[10px] text-gray-500 w-8 flex-shrink-0">{{ legLabel(match.stage) }}</span>
+
+                                <div *ngIf="match.isPlayed" class="flex-shrink-0">
+                                    <span class="text-[10px] text-green-400/70 font-medium">✓</span>
                                 </div>
+
+                                <ng-container *ngIf="!match.isPlayed && match.homeTeam && match.awayTeam && (authService.isAdmin$ | async)">
+                                    <div *ngIf="isLockedVuelta(match)" title="Fill the first leg before the second leg" class="flex-shrink-0">
+                                        <span class="text-gray-600 text-xs w-6 h-6 flex items-center justify-center" aria-label="Locked until first leg is played">🔒</span>
+                                    </div>
+                                    <div *ngIf="!isLockedVuelta(match)" class="flex gap-1 flex-shrink-0">
+                                        <button (click)="openSimulate(match)" title="Simulate"
+                                                class="bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white w-6 h-6 rounded flex items-center justify-center text-xs transition-all">🎲</button>
+                                        <button (click)="openReport(match)" title="Fill Report"
+                                                class="bg-cyan-600/20 hover:bg-cyan-600 text-cyan-400 hover:text-white w-6 h-6 rounded flex items-center justify-center text-xs transition-all">📋</button>
+                                    </div>
+                                </ng-container>
                             </div>
                         </div>
                     </div>
@@ -117,21 +149,239 @@
     </div>
 </div>
 
-<div *ngIf="showActionModal && selectedMatch" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-    <div class="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <button (click)="closeActionModal()" class="absolute top-5 right-5 text-gray-400 hover:text-white transition">✕</button>
-        <div class="text-center">
-            <span class="text-4xl block mb-3">{{ actionType === 'simulate' ? '🎲' : '📋' }}</span>
-            <h3 class="text-xl font-bold text-white mb-2">{{ actionType === 'simulate' ? 'Simulate Match' : 'Match Report' }}</h3>
+<div *ngIf="showActionModal && selectedMatch" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto" (click)="closeActionModal()">
+    <div class="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative my-8" (click)="$event.stopPropagation()">
+        <button type="button" (click)="closeActionModal()" class="absolute top-5 right-5 text-gray-400 hover:text-white transition">✕</button>
+
+        <!-- SIMULATE -->
+        <div *ngIf="actionType === 'simulate'" class="text-center">
+            <span class="text-4xl block mb-3">🎲</span>
+            <h3 class="text-xl font-bold text-white mb-2">Simulate Match</h3>
             <p class="text-sm text-gray-400 mb-1">{{ selectedMatch.homeTeam?.name || 'Team' }} vs {{ selectedMatch.awayTeam?.name || 'Team' }}</p>
             <p class="text-xs text-gray-500 mb-6">{{ selectedMatch.matchDate | date:'fullDate' }}</p>
             <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
                 <p class="text-amber-400 text-sm font-medium">🚧 Coming soon</p>
                 <p class="text-gray-400 text-xs mt-1">This feature is not yet implemented for any sport.</p>
             </div>
+            <div class="flex gap-3 mt-6">
+                <button type="button" (click)="closeActionModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 px-4 rounded-lg text-sm transition">Close</button>
+            </div>
         </div>
-        <div class="flex gap-3 mt-6">
-            <button (click)="closeActionModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 px-4 rounded-lg text-sm transition">Close</button>
+
+        <!-- REPORT -->
+        <div *ngIf="actionType === 'report'">
+            <div class="text-center mb-4">
+                <span class="text-4xl block mb-3">📋</span>
+                <h3 class="text-xl font-bold text-white">Match Report</h3>
+                <p class="text-sm text-gray-400 mt-1">{{ selectedMatch.homeTeam?.name || 'Team' }} vs {{ selectedMatch.awayTeam?.name || 'Team' }}</p>
+                <p class="text-xs text-gray-500">{{ selectedMatch.matchDate | date:'fullDate' }}</p>
+            </div>
+
+            <!-- Aviso: el resultado no se puede editar una vez guardado -->
+            <div class="mb-4 bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-2.5">
+                <p class="text-amber-300 text-xs font-medium">⚠️ Once saved, this result can't be changed. Please double-check the score and stats before saving.</p>
+            </div>
+
+            <!-- Score section -->
+            <!-- Sets-based (volleyball, future tennis) -->
+            <div *ngIf="sportConfig?.useSets" class="mb-5">
+                <div class="flex items-center justify-center gap-6 py-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+                    <div class="text-center min-w-[100px]">
+                        <p class="text-xs text-gray-400 mb-1 truncate">{{ selectedMatch.homeTeam?.name }}</p>
+                        <span class="text-3xl font-extrabold text-white">{{ formHomeScore }}</span>
+                    </div>
+                    <span class="text-2xl font-bold text-gray-500">:</span>
+                    <div class="text-center min-w-[100px]">
+                        <p class="text-xs text-gray-400 mb-1 truncate">{{ selectedMatch.awayTeam?.name }}</p>
+                        <span class="text-3xl font-extrabold text-white">{{ formAwayScore }}</span>
+                    </div>
+                </div>
+                <div class="mt-3 space-y-2">
+                    <div *ngFor="let i of visibleSets()" class="flex items-center justify-center gap-3">
+                        <span class="text-xs text-gray-400 w-16 text-right">Set {{ i + 1 }}</span>
+                        <div class="inline-flex items-center gap-1 bg-gray-900 rounded-lg border border-gray-700 px-2 py-1">
+                            <button (click)="decSet('home', i)" class="w-6 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs transition flex items-center justify-center">−</button>
+                            <input type="number" [(ngModel)]="formHomeSets[i]" (ngModelChange)="onSetChange()" min="0" [attr.max]="sportConfig?.setPointCap ?? 99" class="w-10 text-center bg-transparent text-white font-bold text-base tabular-nums outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"/>
+                            <button (click)="incSet('home', i)" class="w-6 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs transition flex items-center justify-center">+</button>
+                        </div>
+                        <span class="text-gray-500 font-bold">-</span>
+                        <div class="inline-flex items-center gap-1 bg-gray-900 rounded-lg border border-gray-700 px-2 py-1">
+                            <button (click)="decSet('away', i)" class="w-6 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs transition flex items-center justify-center">−</button>
+                            <input type="number" [(ngModel)]="formAwaySets[i]" (ngModelChange)="onSetChange()" min="0" [attr.max]="sportConfig?.setPointCap ?? 99" class="w-10 text-center bg-transparent text-white font-bold text-base tabular-nums outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"/>
+                            <button (click)="incSet('away', i)" class="w-6 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs transition flex items-center justify-center">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto-calculated from stats (football, basketball) -->
+            <div *ngIf="sportConfig?.autoCalcScore && !sportConfig?.useSets" class="mb-5">
+                <div class="flex items-center justify-center gap-6 py-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+                    <div class="text-center min-w-[100px]">
+                        <p class="text-xs text-gray-400 mb-1 truncate">{{ selectedMatch.homeTeam?.name }}</p>
+                        <span class="text-3xl font-extrabold text-white">{{ formHomeScore }}</span>
+                    </div>
+                    <span class="text-2xl font-bold text-gray-500">:</span>
+                    <div class="text-center min-w-[100px]">
+                        <p class="text-xs text-gray-400 mb-1 truncate">{{ selectedMatch.awayTeam?.name }}</p>
+                        <span class="text-3xl font-extrabold text-white">{{ formAwayScore }}</span>
+                    </div>
+                </div>
+                <p class="text-[10px] text-amber-400/80 text-center mt-1.5">{{ sportConfig.icon }} Score auto-calculated from player {{ sportConfig.scoreStatKey }}</p>
+            </div>
+
+            <!-- Manual input (tennis) -->
+            <div *ngIf="!sportConfig?.autoCalcScore && !sportConfig?.useSets" class="flex items-center justify-center gap-4 mb-5">
+                <div class="flex-1 text-right">
+                    <p class="text-xs font-semibold text-gray-400 mb-2 truncate">{{ selectedMatch.homeTeam?.name || 'Home' }}</p>
+                    <div class="inline-flex items-center gap-1 bg-gray-900 rounded-xl border border-gray-700 px-3 py-1.5">
+                        <button (click)="decrementHomeScore()" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-lg transition flex items-center justify-center">−</button>
+                        <input type="number" [(ngModel)]="formHomeScore" min="0" class="w-14 text-center bg-transparent text-white text-2xl font-extrabold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"/>
+                        <button (click)="incrementHomeScore()" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-lg transition flex items-center justify-center">+</button>
+                    </div>
+                </div>
+                <span class="text-2xl font-bold text-gray-500">:</span>
+                <div class="flex-1 text-left">
+                    <p class="text-xs font-semibold text-gray-400 mb-2 truncate">{{ selectedMatch.awayTeam?.name || 'Away' }}</p>
+                    <div class="inline-flex items-center gap-1 bg-gray-900 rounded-xl border border-gray-700 px-3 py-1.5">
+                        <button (click)="decrementAwayScore()" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-lg transition flex items-center justify-center">−</button>
+                        <input type="number" [(ngModel)]="formAwayScore" min="0" class="w-14 text-center bg-transparent text-white text-2xl font-extrabold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"/>
+                        <button (click)="incrementAwayScore()" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-lg transition flex items-center justify-center">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading players -->
+            <div *ngIf="loadingPlayers" class="text-center py-6">
+                <div class="inline-block w-6 h-6 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-gray-400 text-xs mt-2">Loading players...</p>
+            </div>
+
+            <!-- Player stats -->
+            <div *ngIf="!loadingPlayers && statFields.length > 0" class="space-y-5 max-h-[400px] overflow-y-auto pr-1">
+                <!-- Home team players -->
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2">🏠 {{ selectedMatch.homeTeam?.name || 'Home Team' }}</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="text-gray-500 border-b border-gray-700/50">
+                                    <th class="text-left py-1.5 pr-2 w-8">#</th>
+                                    <th class="text-left py-1.5 pr-3">Player</th>
+                                    <th *ngFor="let field of statFields" class="text-center py-1.5 px-1 min-w-[64px]">{{ field.label }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let player of formHomePlayers; trackBy: trackByPlayerId" class="border-b border-gray-800/50 hover:bg-white/[0.02]">
+                                    <td class="py-1.5 pr-2 text-gray-500 font-mono">{{ player.jerseyNumber }}</td>
+                                    <td class="py-1.5 pr-3 text-white font-medium truncate max-w-[140px]">{{ player.name }}</td>
+                                    <td *ngFor="let field of statFields" class="py-1.5 px-1 text-center">
+                                        <div class="inline-flex items-center gap-0.5 bg-gray-900 rounded-lg border border-gray-700/60">
+                                            <button (click)="decStat(player, field.key)" class="w-5 h-5 rounded-l-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs transition flex items-center justify-center">−</button>
+                                            <input type="number" [(ngModel)]="player.stats[field.key]" (ngModelChange)="onStatChange(player, field.key)" min="0" class="w-8 text-center bg-transparent text-white font-bold text-xs tabular-nums outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"/>
+                                            <button (click)="incStat(player, field.key)" class="w-5 h-5 rounded-r-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs transition flex items-center justify-center">+</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Away team players -->
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">✈️ {{ selectedMatch.awayTeam?.name || 'Away Team' }}</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="text-gray-500 border-b border-gray-700/50">
+                                    <th class="text-left py-1.5 pr-2 w-8">#</th>
+                                    <th class="text-left py-1.5 pr-3">Player</th>
+                                    <th *ngFor="let field of statFields" class="text-center py-1.5 px-1 min-w-[64px]">{{ field.label }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let player of formAwayPlayers; trackBy: trackByPlayerId" class="border-b border-gray-800/50 hover:bg-white/[0.02]">
+                                    <td class="py-1.5 pr-2 text-gray-500 font-mono">{{ player.jerseyNumber }}</td>
+                                    <td class="py-1.5 pr-3 text-white font-medium truncate max-w-[140px]">{{ player.name }}</td>
+                                    <td *ngFor="let field of statFields" class="py-1.5 px-1 text-center">
+                                        <div class="inline-flex items-center gap-0.5 bg-gray-900 rounded-lg border border-gray-700/60">
+                                            <button (click)="decStat(player, field.key)" class="w-5 h-5 rounded-l-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs transition flex items-center justify-center">−</button>
+                                            <input type="number" [(ngModel)]="player.stats[field.key]" (ngModelChange)="onStatChange(player, field.key)" min="0" class="w-8 text-center bg-transparent text-white font-bold text-xs tabular-nums outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"/>
+                                            <button (click)="incStat(player, field.key)" class="w-5 h-5 rounded-r-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs transition flex items-center justify-center">+</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty stat fields fallback -->
+            <div *ngIf="!loadingPlayers && !sportConfig" class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
+                <p class="text-amber-400 text-sm font-medium">⚠️ Unknown sport</p>
+                <p class="text-gray-400 text-xs mt-1">No stat configuration found for "{{ sportName }}". You can still enter the result.</p>
+            </div>
+
+            <!-- Penalty shootout / tiebreak (knockout ties) -->
+            <div *ngIf="needsPenalties()" class="mt-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                <p class="text-amber-300 text-xs font-semibold mb-3 text-center">⚽ Empate — desempate por penaltis</p>
+                <div class="flex items-center justify-center gap-4">
+                    <div class="text-center">
+                        <p class="text-gray-400 text-[11px] mb-1 truncate max-w-[120px]">{{ selectedMatch?.homeTeam?.name }}</p>
+                        <input type="number" [(ngModel)]="formHomeTiebreak" min="0"
+                               class="w-14 text-center bg-gray-800 rounded-lg text-white text-2xl font-extrabold outline-none py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"/>
+                    </div>
+                    <span class="text-gray-500 font-bold text-lg">-</span>
+                    <div class="text-center">
+                        <p class="text-gray-400 text-[11px] mb-1 truncate max-w-[120px]">{{ selectedMatch?.awayTeam?.name }}</p>
+                        <input type="number" [(ngModel)]="formAwayTiebreak" min="0"
+                               class="w-14 text-center bg-gray-800 rounded-lg text-white text-2xl font-extrabold outline-none py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"/>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Golden set (volleyball two-leg ties decided 1-1) -->
+            <div *ngIf="needsGoldenSet()" class="mt-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                <p class="text-amber-300 text-xs font-semibold mb-3 text-center">🏐 Empate a un partido por equipo — Golden set (a {{ sportConfig?.goldenSetPoints || 15 }})</p>
+                <div class="flex items-center justify-center gap-4">
+                    <div class="text-center">
+                        <p class="text-gray-400 text-[11px] mb-1 truncate max-w-[120px]">{{ selectedMatch?.homeTeam?.name }}</p>
+                        <input type="number" [(ngModel)]="formHomeTiebreak" min="0"
+                               class="w-14 text-center bg-gray-800 rounded-lg text-white text-2xl font-extrabold outline-none py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"/>
+                    </div>
+                    <span class="text-gray-500 font-bold text-lg">-</span>
+                    <div class="text-center">
+                        <p class="text-gray-400 text-[11px] mb-1 truncate max-w-[120px]">{{ selectedMatch?.awayTeam?.name }}</p>
+                        <input type="number" [(ngModel)]="formAwayTiebreak" min="0"
+                               class="w-14 text-center bg-gray-800 rounded-lg text-white text-2xl font-extrabold outline-none py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"/>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overtime needed (non-penalty knockout sports, e.g. basketball) -->
+            <div *ngIf="needsOvertimeWarning()" class="mt-4 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+                <p class="text-amber-300 text-xs font-medium text-center">
+                    ⏱️ El cruce queda empatado. Juega la prórroga y ajusta el marcador hasta que haya un ganador.
+                </p>
+            </div>
+
+            <!-- Save error -->
+            <div *ngIf="saveError" class="mt-4 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2.5">
+                <p class="text-red-400 text-xs font-medium">{{ saveError }}</p>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3 mt-5">
+                <button (click)="submitReport()" [disabled]="submittingReport || loadingPlayers"
+                        class="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg text-sm transition flex items-center justify-center gap-2">
+                    <span *ngIf="submittingReport" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    {{ submittingReport ? 'Saving...' : '✅ Save Result' }}
+                </button>
+                <button type="button" (click)="closeActionModal()"
+                        class="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 px-4 rounded-lg text-sm transition">Cancel</button>
+            </div>
         </div>
     </div>
 </div>

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Torneos.API.DTOs;
 using Torneos.API.Entities;
 
 namespace Torneos.API.Models;
@@ -12,14 +13,13 @@ public class TeamModel
         _context = context;
     }
 
-    /** Lista todos los equipos con su estadio, deporte y torneos. Si se pasa sportId, filtra por deporte. */
-    public async Task<List<Team>> GetAllAsync(int? sportId)
+    /** Lista equipos paginados con su estadio, deporte y torneos. Si se pasa sportId, filtra por deporte. */
+    public async Task<PagedResult<Team>> GetAllAsync(int? sportId, int page = 1, int pageSize = 20)
     {
         var query = _context.Teams
+            .AsNoTracking()
             .Include(t => t.Stadium)
             .Include(t => t.Sport)
-            .Include(t => t.Players)
-            .Include(t => t.Captain)
             .Include(t => t.TeamTournaments)
                 .ThenInclude(tt => tt.Tournament)
             .AsQueryable();
@@ -27,27 +27,44 @@ public class TeamModel
         if (sportId.HasValue)
             query = query.Where(t => t.SportId == sportId.Value);
 
-        return await query.ToListAsync();
+        query = query.OrderBy(t => t.Id);
+
+        var total = await query.CountAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+        return new PagedResult<Team> { Items = items, TotalCount = total, Page = page, PageSize = pageSize };
     }
 
     /** Obtiene un equipo con estadio, deporte, jugadores, torneos inscritos y el deporte de cada torneo. */
     public async Task<Team?> GetByIdWithDetailsAsync(int id)
     {
-        return await _context.Teams
-            .Include(t => t.Stadium)
-            .Include(t => t.Sport)
+        var team = await _context.Teams
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(t => t.Players)
             .Include(t => t.Captain)
             .Include(t => t.TeamTournaments)
                 .ThenInclude(tt => tt.Tournament)
                     .ThenInclude(t => t.Sport)
             .FirstOrDefaultAsync(t => t.Id == id);
+
+        if (team != null)
+        {
+            team.Sport = await _context.Sports.FindAsync(team.SportId);
+            if (team.StadiumId.HasValue)
+                team.Stadium = await _context.Stadiums
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.Id == team.StadiumId.Value);
+        }
+
+        return team;
     }
 
     /** Obtiene los últimos partidos de un equipo (como local o visitante), ordenados por fecha descendente. */
     public async Task<List<Match>> GetRecentMatchesAsync(int teamId, int take = 20)
     {
         return await _context.Matches
+            .AsNoTracking()
             .Include(m => m.HomeTeam)
             .Include(m => m.AwayTeam)
             .Include(m => m.Tournament)
@@ -61,6 +78,11 @@ public class TeamModel
     public async Task<Team> CreateAsync(Team team)
     {
         if (team.PrestigePoints == 0) team.PrestigePoints = 100;
+
+        // En tenis los equipos (jugadores) no tienen sede propia: siempre se juega en sede neutral.
+        var sport = await _context.Sports.FindAsync(team.SportId);
+        if (sport != null && Torneos.API.Services.SportRules.IsNeutralVenueOnly(sport.Name))
+            team.StadiumId = null;
 
         _context.Teams.Add(team);
         await _context.SaveChangesAsync();

@@ -1,4 +1,4 @@
-import { Component, OnInit, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { EnrollmentRequestService } from '../../services/enrollment-request.service';
 import { EnrollmentRequest } from '../../models/enrollment-request';
@@ -11,7 +11,8 @@ import { BreadcrumbComponent } from '../shared/breadcrumb/breadcrumb';
   standalone: true,
   imports: [CommonModule, SuccessModalComponent, ErrorModalComponent, BreadcrumbComponent],
   templateUrl: './enrollment-requests.html',
-  styleUrl: './enrollment-requests.css'
+  styleUrl: './enrollment-requests.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EnrollmentRequestsComponent implements OnInit {
   @Output() navigateHome = new EventEmitter<void>();
@@ -104,13 +105,13 @@ export class EnrollmentRequestsComponent implements OnInit {
   closeSuccessModal() {
     this.showSuccessModal = false;
     this.successMessage = '';
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
   }
 
   closeErrorModal() {
     this.showErrorModal = false;
     this.errorMessage = '';
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
   }
 
   get breadcrumbSegments(): string[] {
@@ -154,4 +155,7 @@ export class EnrollmentRequestsComponent implements OnInit {
   isNewTeamRequest(req: EnrollmentRequest): boolean {
     return !req.teamId && !!req.newTeamName;
   }
+
+  trackByRequestId(index: number, r: EnrollmentRequest): number { return r.id; }
+  trackByIndex(index: number): number { return index; }
 }

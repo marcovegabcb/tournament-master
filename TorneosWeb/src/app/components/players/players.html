@@ -6,13 +6,17 @@
     [loading]="loading"
     [teamsList]="teamsList"
     [tournaments]="tournaments"
+    [currentPage]="currentPage"
+    [totalPages]="totalPages"
+    [totalCount]="totalCount"
     (createPlayer)="openModal()"
     (showDetails)="showDetails($event)"
-    (deletePlayer)="onDeletePlayer($event)">
+    (deletePlayer)="onDeletePlayer($event)"
+    (pageChange)="goToPage($event)">
 </app-player-list-view>
 
 <app-player-detail-view *ngIf="viewMode === 'detail'"
-    [player]="playerDetails"
+    [player]="selectedPlayer"
     (back)="backToList()">
 </app-player-detail-view>
 

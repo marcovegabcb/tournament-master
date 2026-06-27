@@ -11,7 +11,7 @@ obj/
 *.pdb
 .csproj.user
 appsettings.json
-*. secrets.json
+*.secrets.json
 /.vs/
 
 # Angular / Node

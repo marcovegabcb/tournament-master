@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { EnrollmentRequest } from '../models/enrollment-request';
 
-const API = 'http://localhost:5185/api';
+const API = '/api';
 
 @Injectable({ providedIn: 'root' })
 export class EnrollmentRequestService {

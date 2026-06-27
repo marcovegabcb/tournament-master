@@ -22,10 +22,17 @@ public class KnockoutFixtureGenerator : IFixtureGenerator
         }
 
         var result = new List<Match>(singleLeg.Capacity * 2);
+        string firstRoundName = GetRoundName(NextPowerOfTwo(teams.Count));
 
         foreach (var match in singleLeg)
         {
-            if (match.HomeTeamId != null && match.AwayTeamId == null)
+            // Solo los byes de la PRIMERA ronda (un equipo que avanza sin jugar) quedan a partido
+            // único. Los partidos de rondas posteriores que ya tienen un equipo colocado por un bye
+            // (home != null, away == null) SÍ se juegan a ida y vuelta: les falta el rival del cruce
+            // inferior, no son un bye. Colapsarlos rompía el formato y dejaba al ganador sin avanzar.
+            bool isFirstRoundBye = match.Stage == firstRoundName
+                && match.HomeTeamId != null && match.AwayTeamId == null;
+            if (isFirstRoundBye)
             {
                 result.Add(match);
                 continue;
@@ -151,7 +158,44 @@ public class KnockoutFixtureGenerator : IFixtureGenerator
             }
         }
 
+        PropagateByes(matches);
+
         return matches;
+    }
+
+    private static void PropagateByes(List<Match> matches)
+    {
+        for (int i = 0; i < matches.Count; i++)
+        {
+            var m = matches[i];
+            if (m.HomeTeamId == null || m.AwayTeamId != null) continue;
+
+            var currentStage = m.Stage;
+            string? nextStage = currentStage switch
+            {
+                "Octavos de final" => "Cuartos de final",
+                "Cuartos de final" => "Semifinales",
+                "Semifinal" => "Final",
+                "Semifinales" => "Final",
+                _ => null
+            };
+            if (nextStage == null) continue;
+
+            var currentRoundMatches = matches.Where(x => x.Stage == currentStage).ToList();
+            int idxInRound = currentRoundMatches.IndexOf(m);
+            if (idxInRound < 0) continue;
+
+            int nextMatchIdx = idxInRound / 2;
+            bool isHome = idxInRound % 2 == 0;
+
+            var nextRoundMatches = matches.Where(x => x.Stage == nextStage).ToList();
+            if (nextMatchIdx < nextRoundMatches.Count)
+            {
+                var next = nextRoundMatches[nextMatchIdx];
+                if (isHome) next.HomeTeamId = m.HomeTeamId;
+                else next.AwayTeamId = m.HomeTeamId;
+            }
+        }
     }
 
     private static void AssignStadiums(List<Match> matches, VenueType venueType, Dictionary<int, int?> teamStadiums, List<int> stadiumIds)

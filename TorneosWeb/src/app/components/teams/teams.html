@@ -5,9 +5,13 @@
     [activeSportId]="activeSportId"
     [loading]="loading"
     [stadiumsList]="stadiumsList"
+    [currentPage]="currentPage"
+    [totalPages]="totalPages"
+    [totalCount]="totalCount"
     (createTeam)="openModal()"
     (showDetails)="showDetails($event)"
-    (deleteTeam)="onDeleteTeam($event)">
+    (deleteTeam)="onDeleteTeam($event)"
+    (pageChange)="goToPage($event)">
 </app-team-list-view>
 
 <app-team-detail-view *ngIf="viewMode === 'detail'"
@@ -25,7 +29,6 @@
 <app-team-create-modal *ngIf="isModalOpen"
     [activeSportId]="activeSportId"
     [stadiumsList]="stadiumsList"
-    [playersList]="playersList"
     (created)="onTeamCreated($event)"
     (closed)="closeModal()">
 </app-team-create-modal>

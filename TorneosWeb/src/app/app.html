@@ -45,29 +45,36 @@
     </div>
 </nav>
 
-<div class="flex max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6">
-    <aside class="sticky top-14 z-40 w-48 flex-shrink-0 h-[calc(100vh-3.5rem)] py-6 hidden md:block">
+<div class="flex flex-col min-h-[calc(100vh-3.5rem)]">
+<div class="flex max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 gap-6 flex-1">
+    <aside class="sticky top-14 z-40 w-48 flex-shrink-0 self-start max-h-[calc(100vh-3.5rem)] overflow-y-auto py-6 hidden md:block">
         <div class="bg-gray-800/50 rounded-2xl border border-gray-700/50 p-3 space-y-1">
             <div class="text-[10px] font-bold uppercase tracking-widest text-gray-500 px-2 pb-2 pt-1">⛹️ Sports</div>
-            <div *ngFor="let sport of sportsList"
-                 (click)="selectSport(sport)"
-                 [class.text-white]="selectedSport?.id === sport.id"
-                 [class.text-gray-400]="selectedSport?.id !== sport.id"
-                 class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all hover:text-gray-200"
-                 [style.background]="selectedSport?.id === sport.id ? sport.colorHex + '22' : 'transparent'"
-                 [style.border]="selectedSport?.id === sport.id ? '1px solid ' + sport.colorHex + '55' : '1px solid transparent'">
+             <div *ngFor="let sport of sportsList; trackBy: trackBySportId"
+                  (click)="selectSport(sport)"
+                  [class.text-white]="selectedSport?.id === sport.id"
+                  [class.text-gray-400]="selectedSport?.id !== sport.id"
+                  class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all hover:text-gray-200"
+                  [style.background]="selectedSport?.id === sport.id ? sport.colorHex + '22' : 'transparent'"
+                  [style.border]="selectedSport?.id === sport.id ? '1px solid ' + sport.colorHex + '55' : '1px solid transparent'">
                 <span class="text-lg">{{ getSportIcon(sport.name) }}</span>
                 <span class="flex-1">{{ sport.name }}</span>
                 <span class="text-[10px] font-bold opacity-50" [style.color]="sport.colorHex">{{ getSportCount(sport.id) }}</span>
             </div>
+            <button *ngIf="authService.isAdmin$ | async"
+                    (click)="openAddSport()"
+                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all hover:text-gray-200 text-gray-500 hover:bg-gray-700/30 w-full mt-1 border border-dashed border-gray-600/50">
+                <span class="text-lg">➕</span>
+                <span class="flex-1">Add Sport</span>
+            </button>
         </div>
     </aside>
 
-    <main class="flex-1 min-w-0 pt-6 pb-0">
+    <main class="flex-1 min-w-0 pt-6 pb-12">
         <div class="flex md:hidden items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide"
              style="scrollbar-width: none; -ms-overflow-style: none;">
             <span class="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex-shrink-0 mr-1">⛹️</span>
-            <button *ngFor="let sport of sportsList"
+            <button *ngFor="let sport of sportsList; trackBy: trackBySportId"
                     (click)="selectSport(sport)"
                     [class.text-white]="selectedSport?.id === sport.id"
                     [class.text-gray-400]="selectedSport?.id !== sport.id"
@@ -76,6 +83,12 @@
                     [style.borderColor]="selectedSport?.id === sport.id ? sport.colorHex + '55' : 'rgba(75,85,99,0.5)'">
                 <span>{{ getSportIcon(sport.name) }}</span>
                 <span>{{ sport.name }}</span>
+            </button>
+            <button *ngIf="authService.isAdmin$ | async"
+                    (click)="openAddSport()"
+                    class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap border border-dashed border-gray-600/50 text-gray-500 hover:text-gray-200 flex-shrink-0">
+                <span>➕</span>
+                <span>Add</span>
             </button>
         </div>
 
@@ -137,7 +150,7 @@
                 </button>
 
                 <div #slider class="flex gap-5 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2">
-                    <div *ngFor="let sport of sportsList; let i = index"
+                    <div *ngFor="let sport of sportsList; let i = index; trackBy: trackBySportId"
                          class="flex-shrink-0 w-full sm:w-[calc(50%-10px)] snap-start rounded-2xl overflow-hidden border border-gray-700/50 shadow-xl"
                          [style.background]="'linear-gradient(135deg, ' + sport.colorHex + '22 0%, ' + sport.colorHex + '08 50%, #1e293b 100%)'"
                          [style.borderColor]="sport.colorHex + '44'">
@@ -203,17 +216,15 @@
             </div>
 
             <div class="flex justify-center gap-2 pt-1">
-                <button *ngFor="let sport of sportsList; let i = index"
+                <button *ngFor="let sport of sportsList; let i = index; trackBy: trackBySportId"
                         (click)="scrollToSport(i)"
                         class="w-2.5 h-2.5 rounded-full transition-all opacity-60 hover:opacity-100"
                         [style.background]="sport.colorHex">
                 </button>
             </div>
-
-            <app-footer (navigate)="currentTab = $event"></app-footer>
         </div>
 
-        <div [hidden]="currentTab !== 'tournaments'">
+        <div *ngIf="currentTab === 'tournaments'">
         <app-tournaments
                      [list]="filteredTournaments" 
                      [activeSportId]="selectedSport?.id"
@@ -223,24 +234,24 @@
                      (navigateHome)="currentTab = 'home'"> </app-tournaments>
         </div>
 
-        <div [hidden]="currentTab !== 'teams'">
+        <div *ngIf="currentTab === 'teams'">
         <app-teams
                    [activeSportId]="selectedSport?.id"
                    (navigateHome)="currentTab = 'home'"></app-teams>
         </div>
 
-        <div [hidden]="currentTab !== 'players'">
+        <div *ngIf="currentTab === 'players'">
         <app-players
-                     [activeSportId]="selectedSport?.id"
-                     (navigateHome)="currentTab = 'home'"></app-players>
+                      [activeSportId]="selectedSport?.id"
+                      (navigateHome)="currentTab = 'home'"></app-players>
         </div>
 
-        <div [hidden]="currentTab !== 'stadiums'">
+        <div *ngIf="currentTab === 'stadiums'">
         <app-stadiums [activeSportId]="selectedSport?.id"
                      (navigateHome)="currentTab = 'home'"></app-stadiums>
         </div>
 
-        <div [hidden]="currentTab !== 'generator' || !(authService.isAdmin$ | async)">
+        <div *ngIf="currentTab === 'generator' && (authService.isAdmin$ | async)">
         <app-generator
                        [activeSportId]="selectedSport?.id"
                        (navigateHome)="currentTab = 'home'"></app-generator>
@@ -254,6 +265,42 @@
     </main>
 </div>
 
+<app-footer (navigate)="currentTab = $event"></app-footer>
+</div>
+
 <app-login *ngIf="showLoginModal"
            (loggedIn)="onLoggedIn()"
            (cancelled)="closeLogin()"></app-login>
+
+<div *ngIf="showAddSportModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" (click)="closeAddSport()">
+    <div class="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl" (click)="$event.stopPropagation()">
+        <h3 class="text-xl font-bold text-white mb-1">➕ Add Sport</h3>
+        <p class="text-xs text-gray-400 mb-6">Create a new sport for the platform.</p>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Name</label>
+                <input type="text" [(ngModel)]="newSportName" placeholder="e.g. Baseball"
+                       class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Color</label>
+                <div class="flex items-center gap-3">
+                    <input type="color" [(ngModel)]="newSportColor"
+                           class="w-12 h-12 rounded-lg cursor-pointer bg-gray-900 border border-gray-700 p-1">
+                    <span class="text-sm text-gray-400 font-mono">{{ newSportColor }}</span>
+                </div>
+            </div>
+            <div *ngIf="addSportError" class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400">
+                {{ addSportError }}
+            </div>
+        </div>
+        <div class="flex gap-3 mt-8">
+            <button type="button" (click)="closeAddSport()" class="w-1/3 bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 px-4 rounded-lg text-sm transition">Cancel</button>
+            <button type="button" (click)="addSport()" [disabled]="addSportLoading"
+                    class="w-2/3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg text-sm shadow-md transition-all">
+                <span *ngIf="addSportLoading" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle"></span>
+                {{ addSportLoading ? 'Creating...' : 'Create Sport' }}
+            </button>
+        </div>
+    </div>
+</div>

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
@@ -9,7 +9,8 @@ import { Stadium } from '../../../models/stadium';
   selector: 'app-team-list-view',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './team-list-view.html'
+  templateUrl: './team-list-view.html',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamListViewComponent {
   @Input() set teams(value: Team[]) {
@@ -25,8 +26,13 @@ export class TeamListViewComponent {
   @Input() loading: boolean = false;
   @Input() stadiumsList: Stadium[] = [];
 
+  @Input() currentPage = 1;
+  @Input() totalPages = 0;
+  @Input() totalCount = 0;
+
   @Output() createTeam = new EventEmitter<void>();
   @Output() showDetails = new EventEmitter<Team>();
+  @Output() pageChange = new EventEmitter<number>();
   @Output() deleteTeam = new EventEmitter<Team>();
   @Output() navigateHome = new EventEmitter<void>();
 
@@ -138,4 +144,7 @@ export class TeamListViewComponent {
   onShowDetails(team: Team) {
     this.showDetails.emit(team);
   }
+
+  trackByTeamId(index: number, t: Team): number { return t.id; }
+  trackByIndex(index: number): number { return index; }
 }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Torneos.API.DTOs;
 using Torneos.API.Entities;
 using Torneos.API.Models;
 
@@ -17,9 +18,35 @@ public class TeamsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Team>>> GetTeams([FromQuery] int? sportId)
+    public async Task<ActionResult> GetTeams([FromQuery] int? sportId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        return await _teamModel.GetAllAsync(sportId);
+        var result = await _teamModel.GetAllAsync(sportId, page, pageSize);
+        return Ok(new
+        {
+            items = result.Items.Select(t => new
+            {
+                t.Id,
+                t.Name,
+                t.CaptainName,
+                t.CaptainId,
+                t.LogoUrl,
+                t.GroupLabel,
+                t.PrestigePoints,
+                t.SportId,
+                Sport = t.Sport != null ? new { t.Sport.Id, t.Sport.Name, t.Sport.ColorHex } : null,
+                t.StadiumId,
+                Stadium = t.Stadium != null ? new { t.Stadium.Id, t.Stadium.Name, t.Stadium.City } : null,
+                TeamTournaments = t.TeamTournaments.Select(tt => new {
+                    tt.TeamId,
+                    tt.TournamentId,
+                    Tournament = tt.Tournament != null ? new { tt.Tournament.Id, tt.Tournament.Status } : null
+                })
+            }),
+            result.TotalCount,
+            result.Page,
+            result.PageSize,
+            result.TotalPages
+        });
     }
 
     [HttpGet("{id}/details")]
@@ -49,9 +76,9 @@ public class TeamsController : ControllerBase
             team.GroupLabel,
             team.PrestigePoints,
             team.SportId,
-            team.Sport,
+            Sport = team.Sport != null ? new { team.Sport.Id, team.Sport.Name, team.Sport.ColorHex } : null,
             team.StadiumId,
-            team.Stadium,
+            Stadium = team.Stadium != null ? new { team.Stadium.Id, team.Stadium.Name, team.Stadium.City } : null,
             Players = team.Players.Select(p => new
             {
                 p.Id,
@@ -67,21 +94,21 @@ public class TeamsController : ControllerBase
                 tt.Tournament.Format,
                 tt.Tournament.Status,
                 tt.Tournament.SportId,
-                Sport = new { tt.Tournament.Sport!.Name }
+                Sport = tt.Tournament.Sport != null ? new { tt.Tournament.Sport.Name } : null
             }),
             Matches = matches.Select(m => new
             {
                 m.Id,
                 m.MatchDate,
                 m.HomeTeamId,
-                HomeTeam = new { m.HomeTeam.Name },
+                HomeTeam = new { Name = m.HomeTeam?.Name ?? "Unknown" },
                 m.AwayTeamId,
-                AwayTeam = new { m.AwayTeam.Name },
+                AwayTeam = new { Name = m.AwayTeam?.Name ?? "Unknown" },
                 m.HomeScore,
                 m.AwayScore,
                 m.IsPlayed,
                 m.Stage,
-                TournamentName = m.Tournament.Name
+                TournamentName = m.Tournament?.Name ?? "Unknown"
             })
         };
 
@@ -90,8 +117,17 @@ public class TeamsController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<Team>> CreateTeam(Team team)
+    public async Task<ActionResult<Team>> CreateTeam(CreateTeamRequest request)
     {
+        var team = new Team
+        {
+            Name = request.Name,
+            CaptainName = request.CaptainName,
+            LogoUrl = request.LogoUrl,
+            SportId = request.SportId,
+            StadiumId = request.StadiumId,
+            CaptainId = request.CaptainId
+        };
         var created = await _teamModel.CreateAsync(team);
         return CreatedAtAction(nameof(GetTeams), new { id = created.Id }, created);
     }
@@ -100,31 +136,17 @@ public class TeamsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> RemoveTeamFromTournament(int teamId, int tournamentId)
     {
-        try
-        {
-            var removed = await _teamModel.RemoveFromTournamentAsync(teamId, tournamentId);
-            if (!removed) return NotFound(new { message = "Team is not enrolled in this tournament." });
-            return NoContent();
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var removed = await _teamModel.RemoveFromTournamentAsync(teamId, tournamentId);
+        if (!removed) return NotFound(new { message = "Team is not enrolled in this tournament." });
+        return NoContent();
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteTeam(int id)
     {
-        try
-        {
-            var deleted = await _teamModel.DeleteAsync(id);
-            if (!deleted) return NotFound(new { message = "Team not found." });
-            return NoContent();
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var deleted = await _teamModel.DeleteAsync(id);
+        if (!deleted) return NotFound(new { message = "Team not found." });
+        return NoContent();
     }
 }

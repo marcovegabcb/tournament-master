@@ -14,9 +14,11 @@
 
 ## 🚀 Key Highlights
 
-- **Multi-Sport Ready** — Football, Basketball, Tennis, Volleyball with sport-specific statistics
-- **Three Tournament Formats** — League (round-robin), Knockout (brackets), Groups + Playoffs
-- **Automatic Fixture Generation** — Round-robin scheduling at the click of a button
+- **Multi-Sport Ready** — Football, Basketball, Tennis & Volleyball, each with its own stats and competition rules
+- **Sport-Aware Rules** — Penalty shootouts (football), overtime (basketball), golden set (volleyball) and per-sport standings tie-breakers
+- **Two Tournament Formats** — League (round-robin) and Knockout (single or two-legged brackets) — _Groups + Playoffs coming soon_
+- **Smart Fixture Generation** — One-click scheduling, including two-legged ties and automatic bye handling
+- **Match Reporting** — Per-player stats, set-by-set scoring and winner propagation through the bracket
 - **JWT Authentication** — Secure admin panel with role-based access control
 - **Full-Stack Architecture** — Angular 22 frontend + ASP.NET Core 10 REST API + PostgreSQL
 
@@ -76,8 +78,39 @@ The system manages the complete lifecycle of sports tournaments through two inte
 | **Team** | Participating group | name, captain, logo, prestige, sportId |
 | **Player** | Team member | firstName, lastName, jerseyNumber, matchesPlayed, teamId |
 | **Stadium** | Match venue | name, city, capacity, length, width, sportId |
-| **Match** | Scheduled fixture | date, homeScore, awayScore, stage, tournamentId |
+| **Match** | Scheduled fixture | date, homeScore, awayScore, homePoints, awayPoints, homeTiebreak, awayTiebreak, winnerTeamId, stage, tournamentId |
 | **EnrollmentRequest** | Team join request | teamId, tournamentId, status, requesterEmail |
+| **Player Stats** | Per-match, per-sport stats | FootballStats · BasketballStats · TennisStats · VolleyballStats |
+
+> In set-based sports the match `homeScore`/`awayScore` store **sets won**, while `homePoints`/`awayPoints` store the total **points (volleyball)** or **games (tennis)** across all sets — used as a standings tie-breaker. `homeTiebreak`/`awayTiebreak` hold the **penalty shootout** (football) or **golden set** (volleyball) score, and `winnerTeamId` records the side that advances in a knockout tie.
+
+---
+
+## 🎯 Sport-Specific Rules
+
+Each sport behaves differently both in knockout ties and in league standings.
+
+### Knockout tie resolution
+
+| Sport | Two-legged ties | How a tie is decided |
+|---|---|---|
+| **Football** | ✅ Home & away (aggregate) | Penalty shootout if the aggregate is level |
+| **Basketball** | ✅ Home & away (aggregate) | No draws — overtime is reflected in the score |
+| **Volleyball** | ✅ Home & away (by legs won) | If each team wins one leg, a **golden set (to 15)** decides |
+| **Tennis** | ❌ Single match only | Sets always produce a winner (neutral venue) |
+
+Winners are propagated automatically to the next round, including correct handling of **byes** in brackets that aren't a power of two.
+
+### League standings tie-breakers
+
+Primary ranking is always **points** (win = 3, draw = 1, loss = 0). When teams are level on points:
+
+| Sport | 1st tie-breaker | 2nd tie-breaker |
+|---|---|---|
+| **Football** | Goal difference | Goals for |
+| **Basketball** | Points difference | Points for |
+| **Volleyball** | Set difference | Point difference → points for |
+| **Tennis** | Set difference | Game difference → games for |
 
 ---
 
@@ -137,10 +170,10 @@ Go to **Tournaments** → **Create Tournament** → choose a format:
 | Format | Description |
 |---|---|
 | **League** | Round-robin — every team plays every other team |
-| **Knockout** | Single-elimination bracket |
-| **Groups + Playoffs** | Group stage followed by knockout rounds |
+| **Knockout** | Single-elimination bracket — single match or two-legged (home & away) ties with byes |
+| **Groups + Playoffs** | _Coming soon_ — group stage followed by knockout rounds |
 
-Configure venue type (Home/Away, Neutral, Single Venue) and set prestige requirements.
+Configure venue type (Home & Away, Single Round, Neutral Venue) and set prestige requirements. Tennis is always played as single matches at a neutral venue.
 
 ### 4. Register Teams
 **Teams** tab → **Create Team** → assign a captain, logo, and prestige points. Teams can also request enrollment into existing tournaments.
@@ -162,12 +195,14 @@ As admin, go to **Matches** → select a tournament → click **Generate Fixture
 
 | Feature | Description |
 |---|---|
-| **Multi-Sport** | Football, Basketball, Tennis, Volleyball with sport-specific stats |
-| **Tournament Formats** | League, Knockout, Groups + Playoffs |
-| **Auto Fixtures** | One-click round-robin schedule generation |
-| **Standings & Brackets** | Live tables and interactive knockout trees |
+| **Multi-Sport** | Football, Basketball, Tennis, Volleyball with sport-specific stats and rules |
+| **Tournament Formats** | League and Knockout (single or two-legged) — Groups + Playoffs coming soon |
+| **Auto Fixtures** | One-click schedule generation, two-legged ties and automatic byes |
+| **Sport-Aware Deciders** | Penalty shootout, overtime and golden set for tied knockout ties |
+| **Match Reporting** | Per-player stats, set-by-set scoring and auto-calculated results |
+| **Standings & Brackets** | Live tables with per-sport tie-breakers and interactive knockout trees |
 | **Team & Player Management** | Rosters, captains, jersey numbers, stats |
-| **Stadium Management** | Venues with capacity, dimensions, sport mapping |
+| **Stadium Management** | Venues with capacity, dimensions, sport mapping (neutral venues for tennis) |
 | **Enrollment Requests** | Teams request to join; admin approves/rejects |
 | **JWT Authentication** | Secure admin panel with role-based access |
 | **Swagger Docs** | Auto-generated OpenAPI documentation |
@@ -198,10 +233,13 @@ tournament-master/
 │   ├── Controllers/             # REST API controllers
 │   ├── DTOs/                    # Data transfer objects
 │   ├── Entities/                # EF Core entity models
+│   ├── Middleware/              # Global exception handler, etc.
 │   ├── Migrations/              # Database migrations
 │   ├── Models/                  # Domain models
 │   ├── Services/                # Business logic
-│   │   └── FixtureGenerators/   # League / Knockout / Groups generators
+│   │   ├── FixtureGenerators/   # League / Knockout / Groups generators
+│   │   ├── KnockoutResolver.cs  # Tie resolution (aggregate / golden set / penalties)
+│   │   └── SportRules.cs        # Per-sport rule helpers
 │   ├── Stats/                   # Sport-specific statistics
 │   ├── Program.cs               # Application entry point
 │   └── appsettings.json         # Configuration (see Example template)
@@ -210,6 +248,7 @@ tournament-master/
 │   ├── src/app/
 │   │   ├── components/          # Feature components (bracket, login, players, etc.)
 │   │   ├── models/              # TypeScript interfaces
+│   │   ├── sports/              # Per-sport config (stats, sets, golden set, etc.)
 │   │   └── services/            # HTTP service layer
 │   ├── public/                  # Static assets
 │   └── angular.json             # Angular CLI config
@@ -234,7 +273,8 @@ dotnet test Torneos.Tests
 
 ## 🚀 Roadmap
 
-- [ ] Dark mode toggle
+- [ ] Groups + Playoffs format (group stage → knockout)
+- [ ] Match simulation (auto-generate results)
 - [ ] Live match score updates via SignalR
 - [ ] Player transfer market
 - [ ] Multi-language support (i18n)

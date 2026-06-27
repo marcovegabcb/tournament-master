@@ -103,7 +103,7 @@
 </div>
 
 <div *ngIf="!loading && filteredPlayers.length > 0" class="bg-gray-800/50 rounded-xl border border-gray-700 overflow-hidden">
-    <div *ngFor="let player of filteredPlayers" class="flex items-center justify-between px-5 py-3 border-b border-gray-700/50 last:border-b-0 hover:bg-gray-700/30 transition cursor-pointer" (click)="onShowDetails(player)">
+    <div *ngFor="let player of filteredPlayers; trackBy: trackByPlayerId" class="flex items-center justify-between px-5 py-3 border-b border-gray-700/50 last:border-b-0 hover:bg-gray-700/30 transition cursor-pointer" (click)="onShowDetails(player)">
         <div class="flex items-center gap-3 min-w-0">
             <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                  [style.background]="getSportColor(player.team?.sportId)">
@@ -119,8 +119,27 @@
     </div>
 </div>
 
-<div *ngIf="!loading && filteredPlayers.length === 0" class="text-center py-16 bg-gray-800/10 rounded-xl border border-dashed border-gray-800 mt-6">
+<div *ngIf="!loading && filteredPlayers.length === 0 && totalCount === 0" class="text-center py-16 bg-gray-800/10 rounded-xl border border-dashed border-gray-800 mt-6">
     <span class="text-5xl block mb-4">👥</span>
     <p class="text-gray-400 text-lg font-medium mb-1">No players registered</p>
     <p class="text-gray-500 text-sm">Click "+ Register New Player" to add the first one!</p>
+</div>
+<div *ngIf="!loading && filteredPlayers.length === 0 && totalCount > 0" class="text-center py-16 bg-gray-800/10 rounded-xl border border-dashed border-gray-800 mt-6">
+    <span class="text-5xl block mb-4">👥</span>
+    <p class="text-gray-400 text-lg font-medium mb-1">No players found for this sport on this page</p>
+    <button *ngIf="currentPage > 1" (click)="pageChange.emit(1)" class="mt-2 text-sm text-indigo-400 hover:text-indigo-300 transition">← Back to page 1</button>
+</div>
+
+<div *ngIf="!loading && totalPages > 1 && filteredPlayers.length > 0" class="flex items-center justify-between mt-6 px-1">
+    <p class="text-xs text-gray-500">{{ totalCount }} players · Page {{ currentPage }} of {{ totalPages }}</p>
+    <div class="flex gap-2">
+        <button (click)="pageChange.emit(currentPage - 1)" [disabled]="currentPage === 1"
+                class="px-3 py-1.5 text-xs rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            ← Prev
+        </button>
+        <button (click)="pageChange.emit(currentPage + 1)" [disabled]="currentPage === totalPages"
+                class="px-3 py-1.5 text-xs rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            Next →
+        </button>
+    </div>
 </div>

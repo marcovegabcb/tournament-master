@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Torneos.API.DTOs;
 using Torneos.API.Entities;
 using Torneos.API.Models;
 using Torneos.API.Services;
@@ -33,58 +34,70 @@ public class MatchesController : ControllerBase
 
         var matches = await _matchModel.GetPlayedMatchesAsync(tournamentId);
 
-        var standings = matches
-            .SelectMany(m => new[]
-            {
-                new { TeamId = m.HomeTeamId, TeamName = m.HomeTeam.Name, GoalsFor = m.HomeScore, GoalsAgainst = m.AwayScore },
-                new { TeamId = m.AwayTeamId, TeamName = m.AwayTeam.Name, GoalsFor = m.AwayScore, GoalsAgainst = m.HomeScore }
-            })
-            .GroupBy(x => new { x.TeamId, x.TeamName })
-            .Select(g =>
-            {
-                var wins = matches.Count(m => (m.HomeTeamId == g.Key.TeamId && m.HomeScore > m.AwayScore) ||
-                                               (m.AwayTeamId == g.Key.TeamId && m.AwayScore > m.HomeScore));
-                var losses = matches.Count(m => (m.HomeTeamId == g.Key.TeamId && m.HomeScore < m.AwayScore) ||
-                                                  (m.AwayTeamId == g.Key.TeamId && m.AwayScore < m.HomeScore));
-                var draws = matches.Count(m => (m.HomeTeamId == g.Key.TeamId || m.AwayTeamId == g.Key.TeamId) &&
-                                                m.HomeScore == m.AwayScore);
-                return new
-                {
-                    TeamId = g.Key.TeamId,
-                    TeamName = g.Key.TeamName,
-                    Played = g.Count(),
-                    Wins = wins,
-                    Losses = losses,
-                    Draws = draws,
-                    GoalsFor = g.Sum(x => x.GoalsFor),
-                    GoalsAgainst = g.Sum(x => x.GoalsAgainst),
-                    GoalDifference = g.Sum(x => x.GoalsFor) - g.Sum(x => x.GoalsAgainst),
-                    Points = wins * 3 + draws
-                };
-            })
-            .ToList();
+        // Acumula la clasificación en una sola pasada sobre los partidos jugados.
+        var rows = new Dictionary<int, StandingRow>();
 
-        var enrolledTeams = tournament.TeamTournaments.Select(tt => tt.Team).ToList();
-        var standingTeamIds = new HashSet<int?>(standings.Select(s => s.TeamId));
-        foreach (var team in enrolledTeams)
+        StandingRow Row(int teamId, string teamName)
         {
-            if (!standingTeamIds.Contains(team.Id))
+            if (!rows.TryGetValue(teamId, out var row))
             {
-                standings.Add(new
-                {
-                    TeamId = (int?)team.Id,
-                    TeamName = team.Name,
-                    Played = 0,
-                    Wins = 0,
-                    Losses = 0,
-                    Draws = 0,
-                    GoalsFor = 0,
-                    GoalsAgainst = 0,
-                    GoalDifference = 0,
-                    Points = 0
-                });
+                row = new StandingRow { TeamId = teamId, TeamName = teamName };
+                rows[teamId] = row;
+            }
+            return row;
+        }
+
+        foreach (var m in matches)
+        {
+            if (m.HomeTeamId is int homeId && m.HomeTeam != null)
+            {
+                var row = Row(homeId, m.HomeTeam.Name);
+                row.Played++;
+                row.GoalsFor += m.HomeScore;
+                row.GoalsAgainst += m.AwayScore;
+                row.PointsFor += m.HomePoints;
+                row.PointsAgainst += m.AwayPoints;
+                if (m.HomeScore > m.AwayScore) row.Wins++;
+                else if (m.HomeScore < m.AwayScore) row.Losses++;
+                else row.Draws++;
+            }
+            if (m.AwayTeamId is int awayId && m.AwayTeam != null)
+            {
+                var row = Row(awayId, m.AwayTeam.Name);
+                row.Played++;
+                row.GoalsFor += m.AwayScore;
+                row.GoalsAgainst += m.HomeScore;
+                row.PointsFor += m.AwayPoints;
+                row.PointsAgainst += m.HomePoints;
+                if (m.AwayScore > m.HomeScore) row.Wins++;
+                else if (m.AwayScore < m.HomeScore) row.Losses++;
+                else row.Draws++;
             }
         }
+
+        foreach (var team in tournament.TeamTournaments.Select(tt => tt.Team))
+        {
+            if (!rows.ContainsKey(team.Id))
+                rows[team.Id] = new StandingRow { TeamId = team.Id, TeamName = team.Name };
+        }
+
+        var standings = rows.Values.Select(r => new
+        {
+            TeamId = (int?)r.TeamId,
+            r.TeamName,
+            r.Played,
+            r.Wins,
+            r.Losses,
+            r.Draws,
+            r.GoalsFor,
+            r.GoalsAgainst,
+            GoalDifference = r.GoalsFor - r.GoalsAgainst,
+            // Puntos (vóley) / juegos (tenis) sumados de los sets. Desempate tras la diferencia de sets.
+            r.PointsFor,
+            r.PointsAgainst,
+            PointsDifference = r.PointsFor - r.PointsAgainst,
+            Points = r.Wins * 3 + r.Draws
+        }).ToList();
 
         bool allZero = standings.All(s => s.Points == 0 && s.GoalsFor == 0 && s.GoalsAgainst == 0);
         if (allZero)
@@ -92,8 +105,10 @@ public class MatchesController : ControllerBase
 
         return Ok(standings
             .OrderByDescending(x => x.Points)
-            .ThenByDescending(x => x.GoalDifference)
-            .ThenByDescending(x => x.GoalsFor)
+            .ThenByDescending(x => x.GoalDifference)     // diferencia de sets (goles en fútbol)
+            .ThenByDescending(x => x.PointsDifference)   // vóley: dif. puntos · tenis: dif. juegos (0 en otros)
+            .ThenByDescending(x => x.PointsFor)          // puntos/juegos a favor
+            .ThenByDescending(x => x.GoalsFor)           // sets/goles a favor (último criterio)
             .ToList());
     }
 
@@ -125,5 +140,37 @@ public class MatchesController : ControllerBase
         await _matchModel.MarkFixtureGeneratedAsync(tournamentId);
 
         return Ok(new { message = "Fixtures generated successfully!" });
+    }
+
+    [HttpPost("fix-brackets")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> FixExistingBrackets()
+    {
+        int updated = await _matchModel.FixExistingBracketsAsync();
+        return Ok(new { message = $"Fixed {updated} bracket entries across all knockout tournaments." });
+    }
+
+    [HttpPatch("{id}/result")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdateResult(int id, [FromBody] UpdateMatchResultRequest request)
+    {
+        var updated = await _matchModel.UpdateResultWithStatsAsync(id, request.HomeScore, request.AwayScore, request.PlayerStats, request.HomeTiebreak, request.AwayTiebreak, request.HomePoints, request.AwayPoints);
+        if (!updated) return NotFound("Match not found.");
+        return Ok(new { message = "Match result updated successfully!" });
+    }
+
+    /** Acumulador mutable para construir la clasificación en una sola pasada. */
+    private sealed class StandingRow
+    {
+        public int TeamId { get; init; }
+        public string TeamName { get; init; } = "";
+        public int Played { get; set; }
+        public int Wins { get; set; }
+        public int Losses { get; set; }
+        public int Draws { get; set; }
+        public int GoalsFor { get; set; }
+        public int GoalsAgainst { get; set; }
+        public int PointsFor { get; set; }      // puntos (vóley) / juegos (tenis) a favor
+        public int PointsAgainst { get; set; }  // puntos (vóley) / juegos (tenis) en contra
     }
 }

@@ -1,13 +1,15 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TournamentService } from '../../services/tournament.service';
 import { StadiumService } from '../../services/stadium.service';
 import { TeamService } from '../../services/team.service';
 import { AuthService } from '../../services/auth.service';
-import { Tournament } from '../../models/tournament';
+import { Tournament, TournamentStatus } from '../../models/tournament';
 import { Team } from '../../models/team';
 import { Stadium } from '../../models/stadium';
+import { Sport } from '../../models/sport';
+import { TeamTournament } from '../../models/team-tournament';
 import { SuccessModalComponent } from '../shared/success-modal/success-modal';
 import { ErrorModalComponent } from '../shared/error-modal/error-modal';
 import { BreadcrumbComponent } from '../shared/breadcrumb/breadcrumb';
@@ -16,8 +18,7 @@ import { TournamentListViewComponent } from './tournament-list-view/tournament-l
 import { TournamentScheduleViewComponent } from './tournament-schedule-view/tournament-schedule-view';
 import { TournamentStandingsViewComponent } from './tournament-standings-view/tournament-standings-view';
 import { TournamentCreateModalComponent } from './tournament-create-modal/tournament-create-modal';
-import { TournamentRegisterModalComponent } from './tournament-register-modal/tournament-register-modal';
-import { TournamentRequestModalComponent } from './tournament-request-modal/tournament-request-modal';
+import { TournamentEnrollmentModalComponent } from './tournament-enrollment-modal/tournament-enrollment-modal';
 
 @Component({
   selector: 'app-tournaments',
@@ -26,15 +27,16 @@ import { TournamentRequestModalComponent } from './tournament-request-modal/tour
     CommonModule, FormsModule,
     SuccessModalComponent, ErrorModalComponent, BreadcrumbComponent,
     TournamentListViewComponent, TournamentScheduleViewComponent, TournamentStandingsViewComponent,
-    TournamentCreateModalComponent, TournamentRegisterModalComponent, TournamentRequestModalComponent
+    TournamentCreateModalComponent, TournamentEnrollmentModalComponent
   ],
   templateUrl: './tournaments.html',
-  styleUrl: './tournaments.css'
+  styleUrl: './tournaments.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TournamentsComponent implements OnInit, OnChanges {
   @Input() list: Tournament[] = [];
   @Input() activeSportId: number | undefined = 0;
-  @Input() sportsList: any[] = [];
+  @Input() sportsList: Sport[] = [];
   @Output() tournamentCreated = new EventEmitter<void>();
   @Output() goToGenerator = new EventEmitter<number>();
   @Output() navigateHome = new EventEmitter<void>();
@@ -54,10 +56,9 @@ export class TournamentsComponent implements OnInit, OnChanges {
 
   // Modal visibility flags
   showCreateModal: boolean = false;
-  showRegisterModal: boolean = false;
-  showRequestModal: boolean = false;
+  showEnrollmentModal: boolean = false;
   showTeamsModal: boolean = false;
-  teamsModalData: any = null;
+  teamsModalData: Tournament | null = null;
 
   constructor(
     private tournamentService: TournamentService,
@@ -80,14 +81,20 @@ export class TournamentsComponent implements OnInit, OnChanges {
 
   private loadStadiums() {
     this.stadiumService.getAll(this.activeSportId).subscribe({
-      next: (data) => this.stadiumsList = data,
+      next: (data) => {
+        this.stadiumsList = data.items;
+        this.cdr.markForCheck();
+      },
       error: (err) => console.error('Error loading stadiums:', err)
     });
   }
 
   private loadTeams() {
-    this.teamService.getAll().subscribe({
-      next: (data) => this.teamsList = data,
+    this.teamService.getAll(undefined, 1, 1000).subscribe({
+      next: (data) => {
+        this.teamsList = data.items;
+        this.cdr.markForCheck();
+      },
       error: (err) => console.error('Error loading teams:', err)
     });
   }
@@ -110,11 +117,12 @@ export class TournamentsComponent implements OnInit, OnChanges {
     const tournament = this.list.find(t => t.id === id) || {
       id,
       name: 'Tournament',
-      format: 0 as any,
-      venueConfig: 0 as any,
+      format: 0,
+      venueConfig: 0,
       minPrestigeRequired: 0,
       minPlayersPerTeam: 0,
-      status: 0 as any,
+      maxPlayersPerTeam: 0,
+      status: TournamentStatus.InProgress,
       isFixtureGenerated: false,
       sportId: 0,
       sport: undefined
@@ -147,13 +155,13 @@ export class TournamentsComponent implements OnInit, OnChanges {
     this.successMessage = '';
     this.successSecondaryAction = null;
     this.successSecondaryLabel = '';
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
   }
 
   closeErrorModal() {
     this.showErrorModal = false;
     this.errorMessage = '';
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
   }
 
   onSecondaryAction() {
@@ -208,9 +216,10 @@ export class TournamentsComponent implements OnInit, OnChanges {
     });
   }
 
-  onOpenRegister(tournament: Tournament) {
+  onOpenEnrollment(tournament: Tournament) {
     this.selectedTournament = tournament;
-    this.showRegisterModal = true;
+    this.showEnrollmentModal = true;
+    this.loadTeams();
     this.cdr.detectChanges();
   }
 
@@ -230,18 +239,19 @@ export class TournamentsComponent implements OnInit, OnChanges {
 
   removeTeamFromTournament(teamId: number) {
     if (!this.teamsModalData) return;
-    const tournamentId = this.teamsModalData.id;
-    const teamName = this.teamsModalData.teamTournaments?.find((tt: any) =>
+    const data = this.teamsModalData;
+    const tournamentId = data.id;
+    const teamName = data.teamTournaments?.find((tt: TeamTournament) =>
       tt.teamId === teamId || tt.team?.id === teamId
     )?.team?.name || 'Team';
     if (!confirm(`Remove "${teamName}" from this tournament?`)) return;
 
     this.teamService.removeFromTournament(teamId, tournamentId).subscribe({
       next: () => {
-        this.teamsModalData.teamTournaments = this.teamsModalData.teamTournaments?.filter((tt: any) =>
+        data.teamTournaments = data.teamTournaments?.filter((tt: TeamTournament) =>
           tt.teamId !== teamId && tt.team?.id !== teamId
         ) || [];
-        (this.teamsModalData as any)._enrolledCount = this.teamsModalData.teamTournaments.length;
+        data._enrolledCount = data.teamTournaments.length;
         this.tournamentCreated.emit();
         this.cdr.detectChanges();
       },
@@ -251,12 +261,6 @@ export class TournamentsComponent implements OnInit, OnChanges {
         this.cdr.detectChanges();
       }
     });
-  }
-
-  onOpenRequest(tournament: Tournament) {
-    this.selectedTournament = tournament;
-    this.showRequestModal = true;
-    this.cdr.detectChanges();
   }
 
   onNavigateHome() {
@@ -272,9 +276,9 @@ export class TournamentsComponent implements OnInit, OnChanges {
 
   onTournamentCreated(created: Tournament) {
     this.showCreateModal = false;
-    const currentSport = this.sportsList.find((s: any) => s.id === this.activeSportId);
+    const currentSport = this.sportsList.find(s => s.id === this.activeSportId);
     if (currentSport) {
-      (created as any).sport = { name: currentSport.name };
+      created.sport = currentSport;
     }
     this.list.push(created);
     this.successMessage = `Tournament "${created.name}" successfully created!`;
@@ -283,34 +287,26 @@ export class TournamentsComponent implements OnInit, OnChanges {
     this.tournamentCreated.emit();
   }
 
-  // ── Register modal events ───────────────────────────
+  // ── Enrollment modal events ─────────────────────────
 
-  onTeamRegistered(event: { team: Team; tournament: any }) {
-    this.showRegisterModal = false;
-    const t = this.selectedTournament as any;
-    if (!t._enrolledTeams) t._enrolledTeams = [];
-    t._enrolledTeams.push(event.team);
-    t._enrolledCount = (t._enrolledCount || 0) + 1;
-    this.successMessage = 'Team successfully enrolled!';
-    this.showSuccessModal = true;
-    this.cdr.detectChanges();
-  }
-
-  // ── Request modal events ────────────────────────────
-
-  onRequestSent() {
-    this.showRequestModal = false;
+  onEnrollmentCompleted(event: { isAdmin: boolean }) {
+    this.showEnrollmentModal = false;
     this.selectedTournament = null;
-    this.successMessage = 'Enrollment request sent. Wait for an admin to approve it.';
+    this.successMessage = event.isAdmin
+      ? 'Team successfully enrolled!'
+      : 'Enrollment request sent. Wait for an admin to approve it.';
     this.showSuccessModal = true;
     this.cdr.detectChanges();
+    this.tournamentCreated.emit();
   }
 
   // ── Schedule view events ────────────────────────────
 
   onFixtureGenerated() {
     if (this.selectedTournament) {
-      (this.selectedTournament as any).status = 1;
+      this.selectedTournament.status = TournamentStatus.InProgress;
     }
   }
+
+  trackByIndex(index: number): number { return index; }
 }

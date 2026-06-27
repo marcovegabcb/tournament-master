@@ -4,9 +4,13 @@
     [stadiums]="allStadiums"
     [activeSportId]="activeSportId"
     [loading]="loading"
+    [currentPage]="currentPage"
+    [totalPages]="totalPages"
+    [totalCount]="totalCount"
     (createStadium)="openModal()"
     (showDetails)="showDetails($event)"
-    (deleteStadium)="onDeleteStadium($event)">
+    (deleteStadium)="onDeleteStadium($event)"
+    (pageChange)="goToPage($event)">
 </app-stadium-list-view>
 
 <app-stadium-detail-view *ngIf="viewMode === 'detail'"

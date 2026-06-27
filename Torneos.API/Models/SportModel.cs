@@ -15,7 +15,7 @@ public class SportModel
     /** Lista todos los deportes disponibles. */
     public async Task<List<Sport>> GetAllAsync()
     {
-        return await _context.Sports.ToListAsync();
+        return await _context.Sports.AsNoTracking().ToListAsync();
     }
 
     /** Crea un nuevo deporte y lo guarda en BD. */

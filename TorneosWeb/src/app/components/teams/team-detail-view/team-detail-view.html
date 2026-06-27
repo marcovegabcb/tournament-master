@@ -3,7 +3,16 @@
     <p class="text-gray-400 mt-3">Loading team details...</p>
 </div>
 
-<div *ngIf="!loading && teamDetails">
+<div *ngIf="!loading && errorMessage" class="text-center py-16">
+    <span class="text-5xl block mb-4">⚠️</span>
+    <p class="text-red-400 font-medium mb-2">Could not load team details</p>
+    <p class="text-gray-400 text-sm mb-6">{{ errorMessage }}</p>
+    <button (click)="goBack()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-lg transition">
+        ← Go Back
+    </button>
+</div>
+
+<div *ngIf="!loading && !errorMessage && teamDetails">
 
     <div class="flex items-center gap-4 mb-8">
         <button (click)="goBack()" class="text-gray-400 hover:text-white transition p-1">

@@ -39,6 +39,13 @@ public class EnrollmentsController : ControllerBase
             });
         }
 
+        if (tournament.MaxPlayersPerTeam > 0 && (team.Players == null || team.Players.Count > tournament.MaxPlayersPerTeam))
+        {
+            return BadRequest(new {
+                message = $"Inscripción denegada. El equipo '{team.Name}' tiene {team.Players?.Count ?? 0} jugadores, pero el torneo '{tournament.Name}' permite un máximo de {tournament.MaxPlayersPerTeam} jugadores por equipo."
+            });
+        }
+
         bool alreadyEnrolled = await _enrollmentModel.IsAlreadyEnrolledAsync(teamId, tournamentId);
 
         if (alreadyEnrolled)

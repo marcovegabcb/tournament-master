@@ -1,25 +1,26 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../services/auth.service';
 import { Tournament } from '../../../models/tournament';
+import { Sport } from '../../../models/sport';
 
 @Component({
   selector: 'app-tournament-list-view',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './tournament-list-view.html',
-  styleUrl: './tournament-list-view.css'
+  styleUrl: './tournament-list-view.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TournamentListViewComponent {
   @Input() list: Tournament[] = [];
-  @Input() sportsList: any[] = [];
+  @Input() sportsList: Sport[] = [];
 
   @Output() showSchedule = new EventEmitter<Tournament>();
   @Output() showStandings = new EventEmitter<Tournament>();
   @Output() deleteTournament = new EventEmitter<{ id: number; name: string }>();
   @Output() closeRegistration = new EventEmitter<Tournament>();
-  @Output() openRegister = new EventEmitter<Tournament>();
-  @Output() openRequest = new EventEmitter<Tournament>();
+  @Output() openEnrollment = new EventEmitter<Tournament>();
   @Output() goToGenerator = new EventEmitter<number>();
   @Output() viewTeams = new EventEmitter<Tournament>();
   @Output() navigateHome = new EventEmitter<void>();
@@ -147,7 +148,7 @@ export class TournamentListViewComponent {
   }
 
   getEnrolledCount(tournament: Tournament): number {
-    return (tournament as any)._enrolledCount || tournament.teamTournaments?.length || 0;
+    return tournament._enrolledCount ?? tournament.teamTournaments?.length ?? 0;
   }
 
   onShowSchedule(tournament: Tournament) {
@@ -174,12 +175,8 @@ export class TournamentListViewComponent {
     this.viewTeams.emit(tournament);
   }
 
-  onOpenRegister(tournament: Tournament) {
-    this.openRegister.emit(tournament);
-  }
-
-  onOpenRequest(tournament: Tournament) {
-    this.openRequest.emit(tournament);
+  onOpenEnrollment(tournament: Tournament) {
+    this.openEnrollment.emit(tournament);
   }
 
   onGoToGenerator(id: number) {
@@ -189,4 +186,7 @@ export class TournamentListViewComponent {
   goHome() {
     this.navigateHome.emit();
   }
+
+  trackByTournamentId(index: number, t: Tournament): number { return t.id; }
+  trackByIndex(index: number): number { return index; }
 }
